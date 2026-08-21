@@ -1,0 +1,732 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ledger — Portfolio</title>
+<style>
+  :root{
+    --ink:#0e1420;
+    --panel:#161d2b;
+    --panel-2:#1c2437;
+    --line:#2a3247;
+    --line-soft:#232b3d;
+    --text:#e8ecf4;
+    --text-dim:#8b93a7;
+    --text-faint:#5c637a;
+    --gold:#d4a94f;
+    --gold-soft:#8a7239;
+    --green:#4caf7d;
+    --red:#e0645a;
+    --mono: ui-monospace, "SF Mono", "Cascadia Mono", Menlo, Consolas, monospace;
+    --serif: Georgia, "Iowan Old Style", "Times New Roman", serif;
+    --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  }
+  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
+  body{
+    margin:0;
+    background:
+      radial-gradient(1200px 600px at 15% -10%, #1a2236 0%, transparent 60%),
+      var(--ink);
+    color:var(--text);
+    font-family:var(--sans);
+    padding:28px 20px 80px;
+  }
+  .wrap{ max-width:1080px; margin:0 auto; }
+
+  /* header */
+  header{
+    display:flex;
+    justify-content:space-between;
+    align-items:flex-end;
+    flex-wrap:wrap;
+    gap:18px;
+    margin-bottom:28px;
+    padding-bottom:20px;
+    border-bottom:1px solid var(--line);
+  }
+  .brand{ display:flex; flex-direction:column; gap:4px; }
+  .brand .eyebrow{
+    font-family:var(--mono);
+    font-size:11px;
+    letter-spacing:0.18em;
+    color:var(--gold-soft);
+    text-transform:uppercase;
+  }
+  .brand h1{
+    font-family:var(--serif);
+    font-size:30px;
+    font-weight:400;
+    margin:0;
+    letter-spacing:0.01em;
+  }
+  .totals{
+    display:flex;
+    gap:28px;
+    align-items:baseline;
+  }
+  .totals .block{ text-align:right; }
+  .totals .label{
+    font-family:var(--mono);
+    font-size:10.5px;
+    letter-spacing:0.1em;
+    color:var(--text-faint);
+    text-transform:uppercase;
+    margin-bottom:4px;
+  }
+  .totals .value{
+    font-family:var(--mono);
+    font-size:22px;
+    font-variant-numeric:tabular-nums;
+  }
+  .totals .value.pos{ color:var(--green); }
+  .totals .value.neg{ color:var(--red); }
+  .totals{ cursor:pointer; user-select:none; }
+  .totals:hover .value{ opacity:0.85; }
+
+  /* toolbar */
+  .toolbar{
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    margin-bottom:16px;
+    gap:12px;
+    flex-wrap:wrap;
+  }
+  .status{
+    font-family:var(--mono);
+    font-size:11px;
+    color:var(--text-faint);
+  }
+  .status .dot{
+    display:inline-block;
+    width:6px; height:6px;
+    border-radius:50%;
+    background:var(--green);
+    margin-right:6px;
+    box-shadow:0 0 6px var(--green);
+  }
+  .btns{ display:flex; gap:10px; }
+  button{
+    font-family:var(--sans);
+    font-size:13px;
+    font-weight:600;
+    border:1px solid var(--line);
+    background:var(--panel);
+    color:var(--text);
+    padding:9px 16px;
+    border-radius:7px;
+    cursor:pointer;
+    transition:border-color .15s, background .15s;
+  }
+  button:hover{ border-color:var(--gold-soft); }
+  button.primary{
+    background:var(--gold);
+    color:#1b1607;
+    border-color:var(--gold);
+  }
+  button.primary:hover{ background:#e0b862; }
+  button.ghost{ background:transparent; }
+  button.icon-btn{
+    padding:6px 9px;
+    font-size:12px;
+  }
+  button.danger:hover{ border-color:var(--red); color:var(--red); }
+
+  /* table */
+  .ledger{
+    background:var(--panel);
+    border:1px solid var(--line);
+    border-radius:10px;
+    overflow:hidden;
+  }
+  table{ width:100%; border-collapse:collapse; }
+  thead th{
+    text-align:right;
+    font-family:var(--mono);
+    font-size:10.5px;
+    letter-spacing:0.08em;
+    text-transform:uppercase;
+    color:var(--text-faint);
+    padding:14px 16px;
+    border-bottom:1px solid var(--line);
+    font-weight:500;
+    white-space:nowrap;
+  }
+  thead th:first-child, thead th:nth-child(2){ text-align:left; }
+  tbody td{
+    padding:14px 16px;
+    border-bottom:1px solid var(--line-soft);
+    text-align:right;
+    font-family:var(--mono);
+    font-size:13.5px;
+    font-variant-numeric:tabular-nums;
+    white-space:nowrap;
+  }
+  tbody tr:last-child td{ border-bottom:none; }
+  tbody tr:hover{ background:var(--panel-2); }
+  td.asset-cell{
+    text-align:left;
+    font-family:var(--sans);
+  }
+  .asset-inner{ display:flex; align-items:center; gap:10px; }
+  .asset-inner img{
+    width:26px; height:26px; border-radius:50%;
+    background:var(--line);
+  }
+  .asset-name{ display:flex; flex-direction:column; }
+  .asset-name .sym{ font-weight:700; font-size:13.5px; letter-spacing:0.02em; }
+  .asset-name .full{ font-size:11px; color:var(--text-faint); }
+
+  .pl.pos{ color:var(--green); }
+  .pl.neg{ color:var(--red); }
+  .flash{ animation:flash .7s ease; }
+  @keyframes flash{
+    0%{ background:rgba(212,169,79,0.18); }
+    100%{ background:transparent; }
+  }
+
+  .row-actions{ display:flex; gap:6px; justify-content:flex-end; }
+  .row-actions button{
+    background:transparent;
+    border:1px solid var(--line);
+    color:var(--text-dim);
+    padding:5px 9px;
+    font-size:11px;
+  }
+  .row-actions button:hover{ color:var(--text); border-color:var(--gold-soft); }
+
+  .empty-state{
+    padding:60px 20px;
+    text-align:center;
+    color:var(--text-faint);
+    font-family:var(--sans);
+  }
+  .empty-state .big{
+    font-family:var(--serif);
+    font-size:20px;
+    color:var(--text-dim);
+    margin-bottom:8px;
+  }
+
+  /* modal */
+  .overlay{
+    position:fixed; inset:0;
+    background:rgba(6,9,16,0.7);
+    backdrop-filter:blur(3px);
+    display:none;
+    align-items:flex-start;
+    justify-content:center;
+    padding:60px 16px;
+    z-index:50;
+    overflow-y:auto;
+  }
+  .overlay.show{ display:flex; }
+  .modal{
+    background:var(--panel);
+    border:1px solid var(--line);
+    border-radius:12px;
+    width:100%;
+    max-width:420px;
+    padding:22px;
+  }
+  .modal h2{
+    font-family:var(--serif);
+    font-weight:400;
+    font-size:20px;
+    margin:0 0 18px;
+  }
+  .field{ margin-bottom:14px; position:relative; }
+  .field label{
+    display:block;
+    font-family:var(--mono);
+    font-size:10.5px;
+    letter-spacing:0.08em;
+    text-transform:uppercase;
+    color:var(--text-faint);
+    margin-bottom:6px;
+  }
+  .field input{
+    width:100%;
+    background:var(--ink);
+    border:1px solid var(--line);
+    color:var(--text);
+    padding:10px 12px;
+    border-radius:7px;
+    font-family:var(--sans);
+    font-size:14px;
+  }
+  .field input:focus{ outline:none; border-color:var(--gold-soft); }
+  .field input.mono{ font-family:var(--mono); }
+
+  .search-results{
+    position:absolute;
+    top:100%; left:0; right:0;
+    background:var(--panel-2);
+    border:1px solid var(--line);
+    border-radius:7px;
+    margin-top:4px;
+    max-height:220px;
+    overflow-y:auto;
+    z-index:10;
+  }
+  .search-results .opt{
+    display:flex; align-items:center; gap:10px;
+    padding:9px 12px;
+    cursor:pointer;
+    font-size:13px;
+  }
+  .search-results .opt:hover{ background:var(--panel); }
+  .search-results img{ width:20px; height:20px; border-radius:50%; }
+  .search-results .sym{ font-weight:700; }
+  .search-results .full{ color:var(--text-faint); font-size:11.5px; margin-left:4px; }
+
+  .selected-coin{
+    display:flex; align-items:center; gap:10px;
+    background:var(--ink);
+    border:1px solid var(--line);
+    border-radius:7px;
+    padding:10px 12px;
+    margin-bottom:14px;
+  }
+  .selected-coin img{ width:24px; height:24px; border-radius:50%; }
+  .selected-coin .name{ font-size:13.5px; font-weight:600; }
+  .selected-coin .clear-sel{
+    margin-left:auto;
+    font-family:var(--mono);
+    font-size:11px;
+    color:var(--text-faint);
+    cursor:pointer;
+  }
+
+  .modal-actions{
+    display:flex; justify-content:flex-end; gap:10px;
+    margin-top:20px;
+  }
+  .err-line{
+    font-size:11.5px;
+    color:var(--red);
+    margin-top:-8px;
+    margin-bottom:12px;
+    min-height:14px;
+  }
+
+  footer{
+    text-align:center;
+    margin-top:20px;
+    font-family:var(--mono);
+    font-size:10.5px;
+    color:var(--text-faint);
+  }
+
+  @media (max-width:640px){
+    thead th:nth-child(3), tbody td:nth-child(3){ display:none; } /* avg buy hide on tiny */
+    .totals{ gap:16px; }
+    .totals .value{ font-size:18px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="wrap">
+
+  <header>
+    <div class="brand">
+      <h1>|| चामुंडा कृपा ||</h1>
+    </div>
+    <div class="totals" id="totalsBox" title="Click to hide/show">
+      <div class="block">
+        <div class="label">Total Value</div>
+        <div class="value" id="totalValue">$0.00</div>
+      </div>
+      <div class="block">
+        <div class="label">Unrealized P/L</div>
+        <div class="value" id="totalPL">$0.00</div>
+      </div>
+    </div>
+  </header>
+
+  <div class="toolbar">
+    <div class="status" id="statusLine"><span class="dot"></span>Live · updated just now</div>
+    <div class="btns">
+      <button class="ghost icon-btn" id="refreshBtn" title="Refresh prices">⟳ Refresh</button>
+      <button class="primary" id="addAssetBtn">+ Add Asset</button>
+    </div>
+  </div>
+
+  <div class="ledger">
+    <table id="assetTable">
+      <thead>
+        <tr>
+          <th>Asset</th>
+          <th></th>
+          <th>Avg Buy</th>
+          <th>Quantity</th>
+          <th>Price</th>
+          <th>Value</th>
+          <th>P/L</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody id="tableBody"></tbody>
+    </table>
+    <div class="empty-state" id="emptyState">
+      <div class="big">No holdings yet</div>
+      <div>Add your first asset to start tracking live value.</div>
+    </div>
+  </div>
+
+  <footer>Prices via CoinGecko · data stored only on this device</footer>
+</div>
+
+<!-- Add / Edit modal -->
+<div class="overlay" id="overlay">
+  <div class="modal">
+    <h2 id="modalTitle">Add Asset</h2>
+
+    <div id="coinSearchField" class="field">
+      <label>Search token</label>
+      <input type="text" id="coinSearch" class="mono" placeholder="e.g. bitcoin, eth, sol" autocomplete="off">
+      <div class="search-results" id="searchResults" style="display:none;"></div>
+    </div>
+
+    <div id="selectedCoinBox" style="display:none;"></div>
+
+    <div class="field">
+      <label>Quantity</label>
+      <input type="number" step="any" id="qtyInput" class="mono" placeholder="0.00">
+    </div>
+    <div class="field">
+      <label>Average Buy Price (USD)</label>
+      <input type="number" step="any" id="avgInput" class="mono" placeholder="0.00">
+    </div>
+    <div class="err-line" id="modalErr"></div>
+
+    <div class="modal-actions">
+      <button class="ghost" id="cancelBtn">Cancel</button>
+      <button class="primary" id="saveBtn">Save</button>
+    </div>
+  </div>
+</div>
+
+<script>
+try{
+
+const LS_KEY = "ledger_assets_v1";
+let assets = [];        // { id, coinId, symbol, name, image, qty, avg }
+let priceCache = {};    // coinId -> { price, image }
+let editingId = null;
+let selectedCoin = null; // { id, symbol, name, thumb }
+let searchTimer = null;
+let valuesHidden = false;
+let lastTotalValue = 0;
+let lastTotalPL = 0;
+
+function loadAssets(){
+  try{
+    const raw = localStorage.getItem(LS_KEY);
+    assets = raw ? JSON.parse(raw) : [];
+  }catch(e){ assets = []; }
+}
+function saveAssets(){
+  localStorage.setItem(LS_KEY, JSON.stringify(assets));
+}
+
+function fmtUsd(n){
+  if(n === null || n === undefined || isNaN(n)) return "—";
+  const abs = Math.abs(n);
+  const opts = abs < 1 ? {minimumFractionDigits:4, maximumFractionDigits:6} : {minimumFractionDigits:2, maximumFractionDigits:2};
+  return (n<0?"-$":"$") + Math.abs(n).toLocaleString(undefined, opts);
+}
+function fmtQty(n){
+  if(n === null || n === undefined || isNaN(n)) return "—";
+  return n.toLocaleString(undefined,{maximumFractionDigits:8});
+}
+
+// ---------- CoinGecko search ----------
+async function searchCoins(query){
+  const res = await fetch("https://api.coingecko.com/api/v3/search?query=" + encodeURIComponent(query));
+  if(!res.ok) throw new Error("Search failed");
+  const data = await res.json();
+  return (data.coins || []).slice(0, 8);
+}
+
+// ---------- CoinGecko price fetch ----------
+async function fetchPrices(coinIds){
+  if(coinIds.length === 0) return {};
+  const ids = coinIds.join(",");
+  const res = await fetch("https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&ids=" + encodeURIComponent(ids));
+  if(!res.ok) throw new Error("Price fetch failed");
+  const data = await res.json();
+  const out = {};
+  data.forEach(c => {
+    out[c.id] = { price: c.current_price, image: c.image, name: c.name, symbol: c.symbol };
+  });
+  return out;
+}
+
+async function refreshPrices(showFlash){
+  const ids = [...new Set(assets.map(a => a.coinId))];
+  if(ids.length === 0){ render(); return; }
+  setStatus("Updating…", true);
+  try{
+    const prices = await fetchPrices(ids);
+    priceCache = { ...priceCache, ...prices };
+    render(showFlash);
+    setStatus("Live · updated just now", false);
+  }catch(e){
+    setStatus("Update failed — retry", false, true);
+  }
+}
+
+function maskedLike(str){
+  // turn something like "$1,234.56" into asterisks of similar length
+  return "•".repeat(Math.max(6, Math.min(str.length, 10)));
+}
+function applyTotalsDisplay(){
+  const valEl = document.getElementById("totalValue");
+  const plEl = document.getElementById("totalPL");
+  if(valuesHidden){
+    valEl.textContent = maskedLike(fmtUsd(lastTotalValue));
+    plEl.textContent = maskedLike(fmtUsd(lastTotalPL));
+  } else {
+    valEl.textContent = fmtUsd(lastTotalValue);
+    plEl.textContent = (lastTotalPL>=0?'+':'') + fmtUsd(lastTotalPL);
+  }
+}
+
+function setStatus(text, loading, isErr){
+  const el = document.getElementById("statusLine");
+  el.innerHTML = '<span class="dot" style="background:' + (isErr ? 'var(--red)' : 'var(--green)') + '"></span>' + text;
+}
+
+// ---------- rendering ----------
+function render(flash){
+  const tbody = document.getElementById("tableBody");
+  const empty = document.getElementById("emptyState");
+  const table = document.getElementById("assetTable");
+  tbody.innerHTML = "";
+
+  if(assets.length === 0){
+    table.style.display = "none";
+    empty.style.display = "block";
+    document.getElementById("totalValue").textContent = "$0.00";
+    document.getElementById("totalPL").textContent = "$0.00";
+    return;
+  }
+  table.style.display = "table";
+  empty.style.display = "none";
+
+  let totalValue = 0;
+  let totalCost = 0;
+
+  assets.forEach(a => {
+    const live = priceCache[a.coinId];
+    const price = live ? live.price : null;
+    const value = price !== null ? price * a.qty : null;
+    const cost = a.avg * a.qty;
+    const pl = value !== null ? value - cost : null;
+    const plPct = (cost > 0 && pl !== null) ? (pl / cost) * 100 : null;
+
+    if(value !== null) totalValue += value;
+    totalCost += cost;
+
+    const tr = document.createElement("tr");
+    if(flash) tr.classList.add("flash");
+
+    const img = (live && live.image) || a.image || "";
+    const dots = "••••••";
+    const avgDisp = valuesHidden ? dots : fmtUsd(a.avg);
+    const priceDisp = valuesHidden ? dots : (price !== null ? fmtUsd(price) : "—");
+    const valueDisp = valuesHidden ? dots : (value !== null ? fmtUsd(value) : "—");
+    const plDisp = valuesHidden ? dots : (pl !== null ? (pl>=0?'+':'') + fmtUsd(pl) + ' (' + (plPct>=0?'+':'') + plPct.toFixed(1) + '%)' : "—");
+    tr.innerHTML = `
+      <td class="asset-cell">
+        <div class="asset-inner">
+          <img src="${img}" onerror="this.style.visibility='hidden'">
+          <div class="asset-name">
+            <span class="sym">${a.symbol.toUpperCase()}</span>
+            <span class="full">${a.name}</span>
+          </div>
+        </div>
+      </td>
+      <td></td>
+      <td>${avgDisp}</td>
+      <td>${fmtQty(a.qty)}</td>
+      <td>${priceDisp}</td>
+      <td>${valueDisp}</td>
+      <td class="pl ${pl >= 0 ? 'pos' : 'neg'}">${plDisp}</td>
+      <td>
+        <div class="row-actions">
+          <button data-edit="${a.id}">Edit</button>
+          <button data-del="${a.id}">Del</button>
+        </div>
+      </td>
+    `;
+    tbody.appendChild(tr);
+  });
+
+  const totalPL = totalValue - totalCost;
+  lastTotalValue = totalValue;
+  lastTotalPL = totalPL;
+  const plEl = document.getElementById("totalPL");
+  plEl.className = "value " + (totalPL >= 0 ? "pos" : "neg");
+  applyTotalsDisplay();
+
+  tbody.querySelectorAll("[data-edit]").forEach(btn=>{
+    btn.addEventListener("click", () => openModal(btn.getAttribute("data-edit")));
+  });
+  tbody.querySelectorAll("[data-del]").forEach(btn=>{
+    btn.addEventListener("click", () => {
+      const id = btn.getAttribute("data-del");
+      assets = assets.filter(a => a.id !== id);
+      saveAssets();
+      render();
+    });
+  });
+}
+
+// ---------- modal ----------
+function openModal(editId){
+  editingId = editId || null;
+  selectedCoin = null;
+  document.getElementById("modalErr").textContent = "";
+  document.getElementById("coinSearch").value = "";
+  document.getElementById("searchResults").style.display = "none";
+  document.getElementById("qtyInput").value = "";
+  document.getElementById("avgInput").value = "";
+  document.getElementById("selectedCoinBox").style.display = "none";
+  document.getElementById("coinSearchField").style.display = "block";
+
+  if(editId){
+    const a = assets.find(x => x.id === editId);
+    document.getElementById("modalTitle").textContent = "Edit Asset";
+    selectedCoin = { id:a.coinId, symbol:a.symbol, name:a.name, thumb:a.image };
+    showSelectedCoin();
+    document.getElementById("coinSearchField").style.display = "none";
+    document.getElementById("qtyInput").value = a.qty;
+    document.getElementById("avgInput").value = a.avg;
+  } else {
+    document.getElementById("modalTitle").textContent = "Add Asset";
+  }
+  document.getElementById("overlay").classList.add("show");
+}
+function closeModal(){
+  document.getElementById("overlay").classList.remove("show");
+}
+
+function showSelectedCoin(){
+  const box = document.getElementById("selectedCoinBox");
+  box.style.display = "flex";
+  box.className = "selected-coin";
+  box.innerHTML = `
+    <img src="${selectedCoin.thumb}">
+    <span class="name">${selectedCoin.name} <span style="color:var(--text-faint)">(${selectedCoin.symbol.toUpperCase()})</span></span>
+    <span class="clear-sel" id="clearSelBtn">change</span>
+  `;
+  document.getElementById("clearSelBtn").addEventListener("click", () => {
+    selectedCoin = null;
+    box.style.display = "none";
+    document.getElementById("coinSearchField").style.display = "block";
+    document.getElementById("coinSearch").value = "";
+    document.getElementById("coinSearch").focus();
+  });
+}
+
+document.getElementById("coinSearch").addEventListener("input", (e) => {
+  const q = e.target.value.trim();
+  clearTimeout(searchTimer);
+  const results = document.getElementById("searchResults");
+  if(q.length < 2){ results.style.display = "none"; return; }
+  searchTimer = setTimeout(async () => {
+    try{
+      const coins = await searchCoins(q);
+      if(coins.length === 0){
+        results.innerHTML = '<div class="opt" style="color:var(--text-faint)">No matches</div>';
+      } else {
+        results.innerHTML = coins.map(c => `
+          <div class="opt" data-id="${c.id}" data-symbol="${c.symbol}" data-name="${c.name.replace(/"/g,'&quot;')}" data-thumb="${c.thumb}">
+            <img src="${c.thumb}">
+            <span class="sym">${c.symbol.toUpperCase()}</span>
+            <span class="full">${c.name}</span>
+          </div>
+        `).join("");
+        results.querySelectorAll(".opt[data-id]").forEach(opt => {
+          opt.addEventListener("click", () => {
+            selectedCoin = {
+              id: opt.getAttribute("data-id"),
+              symbol: opt.getAttribute("data-symbol"),
+              name: opt.getAttribute("data-name"),
+              thumb: opt.getAttribute("data-thumb")
+            };
+            results.style.display = "none";
+            document.getElementById("coinSearchField").style.display = "none";
+            showSelectedCoin();
+          });
+        });
+      }
+      results.style.display = "block";
+    }catch(err){
+      results.innerHTML = '<div class="opt" style="color:var(--red)">Search error</div>';
+      results.style.display = "block";
+    }
+  }, 350);
+});
+
+document.getElementById("addAssetBtn").addEventListener("click", () => openModal(null));
+document.getElementById("cancelBtn").addEventListener("click", closeModal);
+document.getElementById("overlay").addEventListener("click", (e) => {
+  if(e.target.id === "overlay") closeModal();
+});
+
+document.getElementById("saveBtn").addEventListener("click", async () => {
+  const errEl = document.getElementById("modalErr");
+  errEl.textContent = "";
+  const qty = parseFloat(document.getElementById("qtyInput").value);
+  const avg = parseFloat(document.getElementById("avgInput").value);
+
+  if(!selectedCoin){ errEl.textContent = "Please select a token."; return; }
+  if(isNaN(qty) || qty <= 0){ errEl.textContent = "Enter a valid quantity."; return; }
+  if(isNaN(avg) || avg < 0){ errEl.textContent = "Enter a valid average buy price."; return; }
+
+  if(editingId){
+    const a = assets.find(x => x.id === editingId);
+    a.qty = qty;
+    a.avg = avg;
+  } else {
+    assets.push({
+      id: "a_" + Date.now() + "_" + Math.random().toString(36).slice(2,7),
+      coinId: selectedCoin.id,
+      symbol: selectedCoin.symbol,
+      name: selectedCoin.name,
+      image: selectedCoin.thumb,
+      qty: qty,
+      avg: avg
+    });
+  }
+  saveAssets();
+  closeModal();
+  await refreshPrices(true);
+});
+
+document.getElementById("refreshBtn").addEventListener("click", () => refreshPrices(true));
+
+document.getElementById("totalsBox").addEventListener("click", () => {
+  valuesHidden = !valuesHidden;
+  applyTotalsDisplay();
+  render();
+});
+
+// ---------- init ----------
+loadAssets();
+render();
+refreshPrices(false);
+setInterval(() => refreshPrices(false), 60000); // auto-refresh every 60s
+
+}catch(err){
+  document.body.insertAdjacentHTML("beforeend",
+    '<div style="max-width:600px;margin:30px auto;padding:14px;background:#3a1f1f;border:1px solid #7a3a3a;border-radius:6px;color:#f0b0b0;font-family:monospace;font-size:12px;white-space:pre-wrap;">Error: ' + err.message + '</div>');
+}
+</script>
+</body>
+</html>

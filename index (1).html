@@ -1,0 +1,315 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Gold Challenge Tracker</title>
+<style>
+  * { box-sizing: border-box; }
+  body {
+    font-family: -apple-system, 'Segoe UI', Arial, sans-serif;
+    background: #0b0d10;
+    color: #e8e4da;
+    margin: 0;
+    padding: 0;
+  }
+  .wrap { max-width: 720px; margin: 0 auto; }
+  .header { padding: 28px 20px 20px; border-bottom: 1px solid #23262b; }
+  .eyebrow { font-size: 11px; letter-spacing: 2px; color: #c9a24b; font-weight: 600; margin-bottom: 6px; }
+  h1 { font-size: 26px; margin: 0 0 4px; font-weight: 700; color: #f4f1ea; }
+  .sub { font-size: 13px; color: #8b8f96; }
+  .row { display: flex; gap: 8px; padding: 16px 20px 0; }
+  .scenario-btn {
+    flex: 1; padding: 10px; border-radius: 8px; border: 1px solid #2a2d33;
+    background: transparent; color: #8b8f96; font-size: 13px; font-weight: 600; cursor: pointer;
+  }
+  .scenario-btn.active { border-color: #c9a24b; background: rgba(201,162,75,0.12); color: #c9a24b; }
+  .balance-row { padding: 16px 20px 0; display: flex; gap: 10px; align-items: center; }
+  .balance-row label { font-size: 12px; color: #8b8f96; min-width: 110px; }
+  #balanceInput {
+    flex: 1; background: #16181c; border: 1px solid #2a2d33; border-radius: 6px;
+    padding: 8px 10px; color: #f4f1ea; font-size: 14px; outline: none;
+  }
+  #resetBtn {
+    font-size: 12px; color: #8b8f96; background: none; border: 1px solid #2a2d33;
+    border-radius: 6px; padding: 8px 12px; cursor: pointer;
+  }
+  .progress-wrap { padding: 20px 20px 0; }
+  .progress-labels { display: flex; justify-content: space-between; font-size: 12px; color: #8b8f96; margin-bottom: 6px; }
+  .progress-bar { height: 6px; background: #1c1e23; border-radius: 3px; overflow: hidden; }
+  .progress-fill { height: 100%; background: linear-gradient(90deg,#c9a24b,#e8c874); transition: width .3s; }
+  .card {
+    margin: 20px 20px 0; background: #141619; border: 1px solid #23262b;
+    border-radius: 12px; padding: 20px;
+  }
+  .card-title { font-size: 11px; letter-spacing: 1.5px; color: #8b8f96; margin-bottom: 14px; }
+  .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  .stat-label { font-size: 11px; color: #8b8f96; margin-bottom: 2px; }
+  .stat-value { font-size: 17px; font-weight: 700; color: #f4f1ea; }
+  .stat-value.risk-high { color: #e05c5c; }
+  .warn-box {
+    margin-top: 14px; font-size: 12px; color: #e0a85c; background: rgba(224,168,92,0.1);
+    padding: 8px 10px; border-radius: 6px;
+  }
+  .btn-row { display: flex; gap: 10px; padding: 16px 20px; }
+  .trade-btn {
+    flex: 1; padding: 14px; border-radius: 10px; font-size: 14px; font-weight: 700; cursor: pointer;
+  }
+  #lossBtn { border: 1px solid #4a2323; background: rgba(224,92,92,0.1); color: #e05c5c; }
+  #winBtn { border: 1px solid #2f4a2f; background: rgba(92,224,120,0.1); color: #6fdb8f; }
+  .log-section { padding: 0 20px 40px; }
+  .log-title { font-size: 11px; letter-spacing: 1.5px; color: #8b8f96; margin: 10px 0; }
+  .log-empty { font-size: 13px; color: #5b5f66; padding: 20px 0; text-align: center; }
+  .log-list { display: flex; flex-direction: column; gap: 8px; }
+  .log-item {
+    display: flex; justify-content: space-between; align-items: center;
+    background: #141619; border: 1px solid #23262b; border-radius: 8px; padding: 10px 14px; font-size: 13px;
+  }
+  .log-meta { color: #8b8f96; }
+  .log-delta.win { color: #6fdb8f; font-weight: 700; }
+  .log-delta.loss { color: #e05c5c; font-weight: 700; }
+  .log-after { color: #f4f1ea; font-weight: 600; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="header">
+    <div class="eyebrow">XAUUSD · XM LOT LADDER</div>
+    <h1>Gold Challenge Tracker</h1>
+    <div class="sub">Balance decides the step. Step decides the lot. You decide win or loss.</div>
+  </div>
+
+  <div class="row">
+    <button class="scenario-btn active" id="btn25" onclick="setScenario('25')">$2.5 SL / $5 TP</button>
+    <button class="scenario-btn" id="btn4" onclick="setScenario('4')">$4 SL / $8 TP</button>
+  </div>
+
+  <div class="balance-row">
+    <label>Set balance to:</label>
+    <input type="number" step="0.01" id="balanceInput">
+    <button id="resetBtn" onclick="resetAll()">Reset</button>
+  </div>
+
+  <div class="progress-wrap">
+    <div class="progress-labels">
+      <span id="balanceLabel"></span>
+      <span id="targetLabel"></span>
+    </div>
+    <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
+  </div>
+
+  <div class="card">
+    <div class="card-title" id="stepTitle"></div>
+    <div class="grid">
+      <div>
+        <div class="stat-label">Lot size</div>
+        <div class="stat-value" id="lotVal"></div>
+      </div>
+      <div>
+        <div class="stat-label">Risk % of balance</div>
+        <div class="stat-value" id="riskVal"></div>
+      </div>
+      <div>
+        <div class="stat-label">Stop loss</div>
+        <div class="stat-value" id="slVal"></div>
+      </div>
+      <div>
+        <div class="stat-label">Take profit</div>
+        <div class="stat-value" id="tpVal"></div>
+      </div>
+    </div>
+    <div class="warn-box" id="warnBox" style="display:none;"></div>
+  </div>
+
+  <div class="btn-row">
+    <button class="trade-btn" id="lossBtn" onclick="recordTrade('loss')"></button>
+    <button class="trade-btn" id="winBtn" onclick="recordTrade('win')"></button>
+  </div>
+
+  <div class="log-section">
+    <div class="log-title">TRADE LOG</div>
+    <div id="logContainer"></div>
+  </div>
+</div>
+
+<script>
+var LADDER_25 = [
+[1,10,0.01,2.5,5],[2,15,0.01,2.5,5],[3,20,0.01,2.5,5],[4,25,0.01,2.5,5],[5,30,0.01,2.5,5],
+[6,35,0.01,2.5,5],[7,40,0.01,2.5,5],[8,45,0.01,2.5,5],[9,50,0.01,2.5,5],[10,55,0.01,2.5,5],
+[11,60,0.01,2.5,5],[12,65,0.01,2.5,5],[13,70,0.01,2.5,5],[14,75,0.01,2.5,5],[15,80,0.01,2.5,5],
+[16,85,0.01,2.5,5],[17,90,0.01,2.5,5],[18,95,0.01,2.5,5],[19,100,0.02,2.5,5],[20,110,0.02,2.5,5],
+[21,120,0.02,2.5,5],[22,130,0.02,2.5,5],[23,140,0.02,2.5,5],[24,150,0.03,2.5,5],[25,165,0.03,2.5,5],
+[26,180,0.03,2.5,5],[27,195,0.03,2.5,5],[28,210,0.04,2.5,5],[29,230,0.04,2.5,5],[30,250,0.05,2.5,5],
+[31,275,0.05,2.5,5],[32,300,0.06,2.5,5],[33,330,0.06,2.5,5],[34,360,0.07,2.5,5],[35,395,0.07,2.5,5],
+[36,430,0.08,2.5,5],[37,470,0.09,2.5,5],[38,515,0.1,2.5,5],[39,565,0.1,2.5,5],[40,615,0.1,2.5,5],
+[41,665,0.1,2.5,5],[42,715,0.1,2.5,5],[43,765,0.1,2.5,5],[44,815,0.1,2.5,5],[45,865,0.1,2.5,5],
+[46,915,0.1,2.5,5],[47,965,0.1,2.5,5],[48,1015,0.2,2.5,5],[49,1115,0.2,2.5,5],[50,1215,0.2,2.5,5],
+[51,1315,0.2,2.5,5],[52,1415,0.2,2.5,5],[53,1515,0.3,2.5,5],[54,1665,0.3,2.5,5],[55,1815,0.3,2.5,5],
+[56,1965,0.3,2.5,5],[57,2115,0.4,2.5,5],[58,2315,0.4,2.5,5],[59,2515,0.5,2.5,5],[60,2765,0.5,2.5,5],
+[61,3015,0.6,2.5,5],[62,3315,0.6,2.5,5],[63,3615,0.7,2.5,5],[64,3965,0.7,2.5,5],[65,4315,0.8,2.5,5],
+[66,4715,0.9,2.5,5],[67,5165,1,2.5,5],[68,5665,1.1,2.5,5],[69,6215,1.2,2.5,5],[70,6815,1.3,2.5,5],
+[71,7465,1.4,2.5,5],[72,8165,1.6,2.5,5],[73,8965,1.7,2.5,5],[74,9815,1.9,2.5,5],[75,10765,2.1,2.5,5],
+[76,11815,2.3,2.5,5],[77,12965,2.5,2.5,5],[78,14215,2.8,2.5,5],[79,15615,3.1,2.5,5],[80,17165,3.4,2.5,5],
+[81,18865,3.7,2.5,5]
+];
+
+var LADDER_4 = [
+[1,10,0.01,4,8],[2,18,0.01,4,8],[3,26,0.01,4,8],[4,34,0.01,4,8],[5,42,0.01,4,8],
+[6,50,0.01,4,8],[7,58,0.01,4,8],[8,66,0.01,4,8],[9,74,0.01,4,8],[10,82,0.01,4,8],
+[11,90,0.01,4,8],[12,98,0.01,4,8],[13,106,0.01,4,8],[14,114,0.01,4,8],[15,122,0.01,4,8],
+[16,130,0.01,4,8],[17,138,0.01,4,8],[18,146,0.01,4,8],[19,154,0.01,4,8],[20,162,0.02,4,8],
+[21,178,0.02,4,8],[22,194,0.02,4,8],[23,210,0.02,4,8],[24,226,0.02,4,8],[25,242,0.03,4,8],
+[26,266,0.03,4,8],[27,290,0.03,4,8],[28,314,0.03,4,8],[29,338,0.04,4,8],[30,370,0.04,4,8],
+[31,402,0.05,4,8],[32,442,0.05,4,8],[33,482,0.06,4,8],[34,530,0.06,4,8],[35,578,0.07,4,8],
+[36,634,0.07,4,8],[37,690,0.08,4,8],[38,754,0.09,4,8],[39,826,0.1,4,8],[40,906,0.1,4,8],
+[41,986,0.1,4,8],[42,1066,0.1,4,8],[43,1146,0.1,4,8],[44,1226,0.1,4,8],[45,1306,0.1,4,8],
+[46,1386,0.1,4,8],[47,1466,0.1,4,8],[48,1546,0.1,4,8],[49,1626,0.2,4,8],[50,1786,0.2,4,8],
+[51,1946,0.2,4,8],[52,2106,0.2,4,8],[53,2266,0.2,4,8],[54,2426,0.3,4,8],[55,2666,0.3,4,8],
+[56,2906,0.3,4,8],[57,3146,0.3,4,8],[58,3386,0.4,4,8],[59,3706,0.4,4,8],[60,4026,0.5,4,8],
+[61,4426,0.5,4,8],[62,4826,0.6,4,8],[63,5306,0.6,4,8],[64,5786,0.7,4,8],[65,6346,0.7,4,8],
+[66,6906,0.8,4,8],[67,7546,0.9,4,8],[68,8266,1,4,8],[69,9066,1.1,4,8],[70,9946,1.2,4,8],
+[71,10906,1.3,4,8],[72,11946,1.4,4,8],[73,13066,1.6,4,8],[74,14346,1.7,4,8],[75,15706,1.9,4,8],
+[76,17226,2.1,4,8],[77,18906,2.3,4,8]
+];
+
+var state = { scenario: '25', balance: 10, log: [], target: 20000 };
+
+function loadState(){
+  try{
+    var raw = localStorage.getItem('gold-tracker-state');
+    if(raw){
+      var data = JSON.parse(raw);
+      if(typeof data.balance === 'number') state.balance = data.balance;
+      if(Array.isArray(data.log)) state.log = data.log;
+      if(data.scenario) state.scenario = data.scenario;
+    }
+  }catch(e){}
+}
+
+function saveState(){
+  try{
+    localStorage.setItem('gold-tracker-state', JSON.stringify(state));
+  }catch(e){}
+}
+
+function money(n){
+  var v = Math.round(n * 100) / 100;
+  return '$' + v.toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2});
+}
+
+function getLadder(){
+  return state.scenario === '25' ? LADDER_25 : LADDER_4;
+}
+
+function findStep(balance){
+  var ladder = getLadder();
+  var match = ladder[0];
+  for(var i=0;i<ladder.length;i++){
+    if(ladder[i][1] <= balance) match = ladder[i]; else break;
+  }
+  return match;
+}
+
+function setScenario(s){
+  state.scenario = s;
+  document.getElementById('btn25').classList.toggle('active', s === '25');
+  document.getElementById('btn4').classList.toggle('active', s === '4');
+  saveState();
+  render();
+}
+
+function resetAll(){
+  state.balance = 10;
+  state.log = [];
+  saveState();
+  render();
+}
+
+function recordTrade(result){
+  var step = findStep(state.balance);
+  var lot = step[2], slMove = step[3], tpMove = step[4];
+  var slDollar = lot * 100 * slMove;
+  var tpDollar = lot * 100 * tpMove;
+  var before = state.balance;
+  var after = result === 'win' ? before + tpDollar : before - slDollar;
+  after = Math.max(0, after);
+  state.log.unshift({
+    n: state.log.length + 1,
+    step: step[0],
+    lot: lot,
+    result: result,
+    before: before,
+    after: after
+  });
+  state.balance = after;
+  saveState();
+  render();
+}
+
+function render(){
+  document.getElementById('balanceInput').value = state.balance;
+  document.getElementById('balanceLabel').textContent = money(state.balance);
+  document.getElementById('targetLabel').textContent = 'Target ' + money(state.target);
+  var progressPct = Math.min(100, (state.balance / state.target) * 100);
+  document.getElementById('progressFill').style.width = progressPct + '%';
+
+  var step = findStep(state.balance);
+  var stepNum = step[0], lot = step[2], slMove = step[3], tpMove = step[4];
+  var slDollar = lot * 100 * slMove;
+  var tpDollar = lot * 100 * tpMove;
+  var riskPct = (slDollar / state.balance) * 100;
+
+  document.getElementById('stepTitle').textContent = 'CURRENT STEP MATCH — STEP ' + stepNum;
+  document.getElementById('lotVal').textContent = lot;
+  var riskEl = document.getElementById('riskVal');
+  riskEl.textContent = riskPct.toFixed(1) + '%';
+  riskEl.classList.toggle('risk-high', riskPct > 5);
+  document.getElementById('slVal').textContent = money(slDollar) + ' (' + slMove + ' pt)';
+  document.getElementById('tpVal').textContent = money(tpDollar) + ' (' + tpMove + ' pt)';
+
+  var warnBox = document.getElementById('warnBox');
+  if(riskPct > 5){
+    warnBox.style.display = 'block';
+    warnBox.textContent = 'Real risk here is ' + riskPct.toFixed(1) + '% of balance — above a 5% target, because the lot floor is 0.01.';
+  } else {
+    warnBox.style.display = 'none';
+  }
+
+  document.getElementById('lossBtn').textContent = '✕ Loss  -' + money(slDollar);
+  document.getElementById('winBtn').textContent = '✓ Win  +' + money(tpDollar);
+
+  var logContainer = document.getElementById('logContainer');
+  if(state.log.length === 0){
+    logContainer.innerHTML = '<div class="log-empty">No trades yet. Log your first result above.</div>';
+  } else {
+    var html = '<div class="log-list">';
+    for(var i=0;i<state.log.length;i++){
+      var t = state.log[i];
+      var delta = Math.abs(t.after - t.before);
+      var cls = t.result === 'win' ? 'win' : 'loss';
+      var sign = t.result === 'win' ? '+' : '-';
+      html += '<div class="log-item">' +
+        '<div class="log-meta">#' + t.n + ' · Step ' + t.step + ' · ' + t.lot + ' lot</div>' +
+        '<div class="log-delta ' + cls + '">' + sign + money(delta) + '</div>' +
+        '<div class="log-after">' + money(t.after) + '</div>' +
+      '</div>';
+    }
+    html += '</div>';
+    logContainer.innerHTML = html;
+  }
+}
+
+document.getElementById('balanceInput').addEventListener('change', function(e){
+  var v = parseFloat(e.target.value);
+  state.balance = isNaN(v) ? 0 : Math.max(0, v);
+  saveState();
+  render();
+});
+
+loadState();
+document.getElementById('btn25').classList.toggle('active', state.scenario === '25');
+document.getElementById('btn4').classList.toggle('active', state.scenario === '4');
+render();
+</script>
+</body>
+</html>
