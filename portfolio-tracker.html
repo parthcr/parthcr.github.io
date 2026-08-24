@@ -46,7 +46,7 @@
   /* two-column 50/50 layout with a bold divider */
   .layout{display:grid;grid-template-columns:1fr 1fr;gap:0;align-items:start;}
   .layout-left{position:sticky;top:20px;padding-right:26px;border-right:3px solid var(--ink);}
-  .layout-right{padding-left:26px;}
+  .layout-right{padding-left:26px;margin-top:-6px;}
   @media (max-width:880px){
     .layout{grid-template-columns:1fr;}
     .layout-left{position:static;padding-right:0;border-right:none;padding-bottom:20px;border-bottom:3px solid var(--ink);margin-bottom:20px;}
@@ -83,7 +83,7 @@
   .btn-add:hover{background:var(--blue);}
   .btn-add:active{transform:scale(0.98);}
 
-  .section-title{font-family:'Sora',sans-serif;font-size:13px;font-weight:700;color:var(--ink-soft);margin:0 0 14px;text-transform:uppercase;letter-spacing:0.5px;}
+  .section-title{font-family:'Sora',sans-serif;font-size:12px;font-weight:700;color:var(--ink-soft);margin:0 0 8px;text-transform:uppercase;letter-spacing:0.5px;}
 
   /* holdings — 2 columns within the right half */
   .cards-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
@@ -548,7 +548,6 @@ function render(){
     const dayChange = p ? p.usd_24h_change : null;
     const dayCls = dayChange === null ? '' : (dayChange >= 0 ? 'up' : 'down');
     const daySign = dayChange !== null && dayChange >= 0 ? '+' : '';
-    const portfolioPct = (value !== null && totalValue > 0) ? (value/totalValue)*100 : null;
 
     const card = document.createElement('div');
     card.className = 'coin-card';
@@ -568,7 +567,7 @@ function render(){
         <div><div class="cell-label">Amount</div><div class="cell-value">${fmt(h.amount,4)}</div></div>
         <div><div class="cell-label">Avg buy</div><div class="cell-value">$${fmt(h.buyPrice, h.buyPrice < 0.01 ? 6 : 2)}</div></div>
         <div><div class="cell-label">Price now</div><div class="cell-value">${price !== null ? '$'+fmt(price, price<0.01?6:2) : '—'}</div></div>
-        <div><div class="cell-label">Value</div><div class="cell-value big ${priceFlash}" style="color:var(--green);">${value !== null ? '$'+fmt(value,2) : '—'}</div>${portfolioPct !== null ? `<div class="card-pct-badge">${fmt(portfolioPct,1)}% of portfolio</div>` : ''}</div>
+        <div><div class="cell-label">Value</div><div class="cell-value big ${priceFlash}" style="color:var(--green);">${value !== null ? '$'+fmt(value,2) : '—'}</div></div>
         <div style="grid-column:1/-1;"><div class="cell-label">P/L</div><div class="cell-value big ${pl>=0?'up':'down'}">${pl !== null ? (pl>=0?'+':'')+'$'+fmt(pl,2)+' ('+(plPct>=0?'+':'')+fmt(plPct,2)+'%)' : '—'}</div></div>
       </div>
     `;
