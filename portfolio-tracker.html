@@ -208,6 +208,7 @@
         <div class="stat c-blue">
           <div class="stat-label"><span class="dot"></span>Total value</div>
           <div class="stat-value" id="sum-value" style="color:var(--green);">$0.00</div>
+          <svg id="sparkline" viewBox="0 0 200 40" style="width:100%;height:28px;margin-top:6px;display:none;" preserveAspectRatio="none"></svg>
         </div>
         <div class="stat c-green" id="pl-card">
           <div class="stat-label"><span class="dot"></span>Total P/L</div>
@@ -601,6 +602,69 @@ function render(){
   plCard.className = 'stat ' + (totalPl>=0 ? 'c-green' : 'c-red');
 
   drawAllocation(computed, totalValue);
+  recordValueSnapshot(totalValue);
+}
+
+// ---------- value history (for the Total Value sparkline) ----------
+const VALUE_HISTORY_KEY = 'value-history-v1';
+let valueHistory = [];
+
+async function loadValueHistory(){
+  try{
+    if(hasCloudStorage){
+      const res = await window.storage.get('value-history', false);
+      valueHistory = res && res.value ? JSON.parse(res.value) : [];
+    }else{
+      const raw = localStorage.getItem(VALUE_HISTORY_KEY);
+      valueHistory = raw ? JSON.parse(raw) : [];
+    }
+  }catch(e){ valueHistory = []; }
+}
+async function saveValueHistory(){
+  try{
+    if(hasCloudStorage){
+      await window.storage.set('value-history', JSON.stringify(valueHistory), false);
+    }else{
+      localStorage.setItem(VALUE_HISTORY_KEY, JSON.stringify(valueHistory));
+    }
+  }catch(e){}
+}
+
+function recordValueSnapshot(totalValue){
+  if(totalValue <= 0) return;
+  const now = Date.now();
+  const last = valueHistory[valueHistory.length - 1];
+  // only log a new point every ~10 minutes so the history builds up over
+  // real time (hours/days) instead of filling with noise every refresh
+  if(!last || now - last[0] >= 10 * 60 * 1000){
+    valueHistory.push([now, totalValue]);
+    if(valueHistory.length > 500) valueHistory = valueHistory.slice(-500);
+    saveValueHistory();
+  }
+  drawSparkline();
+}
+
+function drawSparkline(){
+  const svg = document.getElementById('sparkline');
+  if(valueHistory.length < 2){ svg.style.display = 'none'; return; }
+  svg.style.display = 'block';
+  svg.innerHTML = '';
+  const W=200, H=40;
+  const vals = valueHistory.map(p => p[1]);
+  const minV = Math.min(...vals), maxV = Math.max(...vals);
+  const range = (maxV - minV) || 1;
+  const xFor = i => (i/(vals.length-1)) * W;
+  const yFor = v => H - 3 - ((v-minV)/range) * (H-6);
+  const isUp = vals[vals.length-1] >= vals[0];
+  const color = isUp ? '#0FA968' : '#FF4D4D';
+
+  let d = '';
+  vals.forEach((v,i) => { const x=xFor(i), y=yFor(v); d += (i===0?'M':'L')+x.toFixed(1)+','+y.toFixed(1)+' '; });
+  const ns = 'http://www.w3.org/2000/svg';
+  const line = document.createElementNS(ns,'path');
+  line.setAttribute('d', d); line.setAttribute('fill','none'); line.setAttribute('stroke', color);
+  line.setAttribute('stroke-width','2'); line.setAttribute('stroke-linecap','round'); line.setAttribute('stroke-linejoin','round');
+  svg.appendChild(line);
 }
 
 // ---------- allocation donut chart ----------
@@ -1050,7 +1114,7 @@ setInterval(async () => {
   }
 }, 20000);
 
-loadHoldings();
+loadValueHistory().then(loadHoldings);
 
 }catch(err){
   document.body.insertAdjacentHTML('beforeend',
