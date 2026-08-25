@@ -61,7 +61,7 @@
   .col-head{
     display:flex;
     align-items:center;
-    gap:4px;
+    position:relative;
   }
   .col-name{
     flex:1;
@@ -70,32 +70,54 @@
     white-space:nowrap;
     cursor:pointer;
     user-select:none;
-    padding:4px 2px;
+    padding:6px 4px;
+    border-radius:5px;
   }
   .col-name:hover{
-    color:var(--accent);
-  }
-  .col-sum-btn, .col-del-btn{
-    border:1px solid var(--border);
-    background:#fff;
-    color:var(--muted);
-    font-size:11px;
-    border-radius:4px;
-    width:20px;
-    height:20px;
-    line-height:1;
-    cursor:pointer;
-    flex:none;
-    padding:0;
-  }
-  .col-sum-btn.active{
     background:var(--accent-soft);
     color:var(--accent);
-    border-color:var(--accent);
   }
-  .col-del-btn:hover{
+  .col-sum-badge{
+    font-size:10px;
+    font-weight:700;
+    color:var(--accent);
+    margin-left:3px;
+  }
+  .col-menu{
+    position:absolute;
+    top:100%;
+    left:0;
+    margin-top:4px;
+    background:#fff;
+    border:1px solid var(--border);
+    border-radius:8px;
+    box-shadow:0 6px 18px rgba(0,0,0,0.14);
+    z-index:20;
+    min-width:180px;
+    overflow:hidden;
+    display:flex;
+    flex-direction:column;
+  }
+  .col-menu-item{
+    border:none;
+    background:#fff;
+    text-align:left;
+    padding:11px 14px;
+    font-size:13px;
+    font-weight:500;
+    color:var(--text);
+    cursor:pointer;
+    white-space:nowrap;
+  }
+  .col-menu-item + .col-menu-item{
+    border-top:1px solid var(--border);
+  }
+  .col-menu-item:hover{
+    background:var(--accent-soft);
+  }
+  .col-menu-item.danger:hover{
+    background:#fbeceb;
     color:var(--danger);
-    border-color:var(--danger);
   }
   tbody td{
     padding:0;
@@ -144,7 +166,7 @@
     border:none;
     background:transparent;
     color:var(--muted);
-    font-size:15px;
+    font-size:14px;
     cursor:pointer;
     padding:4px 6px;
     line-height:1;
@@ -179,6 +201,7 @@
     align-items:center;
     padding:12px 14px;
     background:#fafafa;
+    border-bottom:1px solid var(--border);
     flex-wrap:wrap;
     gap:10px;
   }
@@ -263,15 +286,6 @@
 <div class="wrap">
   <h1>|| चामुंडा कृपा ||</h1>
   <div class="card">
-    <table>
-      <thead>
-        <tr id="headRow"></tr>
-      </thead>
-      <tbody id="rows"></tbody>
-      <tfoot>
-        <tr id="footRow"></tr>
-      </tfoot>
-    </table>
     <div class="footer">
       <div class="footer-left">
         <button class="add-btn" onclick="addRow()">+ Add Row</button>
@@ -283,6 +297,15 @@
         <button class="add-btn secondary" id="lockBtn" onclick="lockNow()" style="display:none">Lock</button>
       </div>
     </div>
+    <table>
+      <thead>
+        <tr id="headRow"></tr>
+      </thead>
+      <tbody id="rows"></tbody>
+      <tfoot>
+        <tr id="footRow"></tr>
+      </tfoot>
+    </table>
   </div>
 </div>
 
@@ -331,30 +354,58 @@
       const span = document.createElement('span');
       span.className = 'col-name';
       span.textContent = col.name;
-      span.title = 'Click to rename';
-      span.onclick = () => renameColumn(idx);
-
-      const sumBtn = document.createElement('button');
-      sumBtn.className = 'col-sum-btn' + (col.isSum ? ' active' : '');
-      sumBtn.textContent = '\u03a3';
-      sumBtn.title = col.isSum ? 'Sum ON \u2014 click to turn off' : 'Click to sum this column';
-      sumBtn.onclick = () => toggleSum(idx);
-
-      const delBtn = document.createElement('button');
-      delBtn.className = 'col-del-btn';
-      delBtn.innerHTML = '&times;';
-      delBtn.title = 'Remove column';
-      delBtn.onclick = () => removeColumn(idx);
+      if (col.isSum) {
+        const badge = document.createElement('span');
+        badge.className = 'col-sum-badge';
+        badge.textContent = '\u03a3';
+        span.appendChild(badge);
+      }
+      span.title = 'Tap for options';
+      span.onclick = (e) => openColMenu(e, th, idx);
 
       div.appendChild(span);
-      div.appendChild(sumBtn);
-      div.appendChild(delBtn);
       th.appendChild(div);
       headRowEl.appendChild(th);
     });
     const actionsTh = document.createElement('th');
     actionsTh.className = 'actions';
     headRowEl.appendChild(actionsTh);
+  }
+
+  function closeColMenus() {
+    document.querySelectorAll('.col-menu').forEach(m => m.remove());
+  }
+
+  function openColMenu(e, th, idx) {
+    e.stopPropagation();
+    const already = th.querySelector('.col-menu');
+    closeColMenus();
+    if (already) return; // clicking again closes it
+
+    const menu = document.createElement('div');
+    menu.className = 'col-menu';
+
+    const renameBtn = document.createElement('button');
+    renameBtn.className = 'col-menu-item';
+    renameBtn.textContent = '\u270f\ufe0f  Rename';
+    renameBtn.onclick = (ev) => { ev.stopPropagation(); closeColMenus(); renameColumn(idx); };
+
+    const sumBtn = document.createElement('button');
+    sumBtn.className = 'col-menu-item';
+    sumBtn.textContent = (columns[idx].isSum ? '\u2705  Sum: On' : '\u03a3  Sum: Off') ;
+    sumBtn.onclick = (ev) => { ev.stopPropagation(); closeColMenus(); toggleSum(idx); };
+
+    const delBtn = document.createElement('button');
+    delBtn.className = 'col-menu-item danger';
+    delBtn.textContent = '\ud83d\uddd1\ufe0f  Delete column';
+    delBtn.onclick = (ev) => { ev.stopPropagation(); closeColMenus(); removeColumn(idx); };
+
+    menu.appendChild(renameBtn);
+    menu.appendChild(sumBtn);
+    menu.appendChild(delBtn);
+    th.querySelector('.col-head').appendChild(menu);
+
+    document.addEventListener('click', closeColMenus, { once: true });
   }
 
   function renameColumn(idx) {
@@ -438,7 +489,7 @@
 
     const delBtn = document.createElement('button');
     delBtn.className = 'del-btn';
-    delBtn.innerHTML = '&times;';
+    delBtn.innerHTML = '\u{1F5D1}\u{FE0F}';
     delBtn.title = 'Delete row';
     delBtn.onclick = () => { tr.remove(); saveData(); };
     actionsTd.appendChild(delBtn);
