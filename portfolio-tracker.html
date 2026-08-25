@@ -28,29 +28,43 @@
   }
   *{box-sizing:border-box;}
   *{transition:background-color .15s ease, border-color .15s ease, color .15s ease, opacity .15s ease, transform .12s ease;}
+  html, body{height:100%;}
   body{
     margin:0;
     background:var(--bg);
     color:var(--ink);
     font-family:'Manrope',sans-serif;
-    padding:0 0 60px;
+    overflow:hidden; /* only the right pane scrolls, not the whole page */
   }
-  .page{max-width:1200px;margin:0 auto;padding:26px 22px 40px;}
+  .page{max-width:1200px;margin:0 auto;padding:22px 22px 0;height:100vh;display:flex;flex-direction:column;}
 
-  header{display:flex;align-items:baseline;justify-content:space-between;margin-bottom:4px;flex-wrap:wrap;gap:8px;}
+  header{display:flex;align-items:baseline;justify-content:space-between;margin-bottom:20px;flex-wrap:wrap;gap:8px;flex-shrink:0;}
   h1{font-family:'Sora',sans-serif;font-size:24px;font-weight:800;margin:0;letter-spacing:-0.5px;}
   .updated{font-family:'Space Mono',monospace;font-size:11px;color:var(--ink-faint);background:var(--paper);border:1px solid var(--line);padding:4px 9px;border-radius:999px;}
 
-  .sub{color:var(--ink-soft);font-size:13.5px;margin:2px 0 24px;}
+  .sub{color:var(--ink-soft);font-size:13.5px;margin:2px 0 20px;flex-shrink:0;}
 
-  /* two-column 50/50 layout with a bold divider */
-  .layout{display:grid;grid-template-columns:1fr 1fr;gap:0;align-items:start;}
-  .layout-left{position:sticky;top:20px;padding-right:26px;border-right:3px solid var(--ink);}
-  .layout-right{padding-left:26px;margin-top:-6px;}
+  /* two-column layout — left pane fixed in place, right pane scrolls on its own */
+  .layout{display:flex;gap:0;flex:1;min-height:0;}
+  .layout-left{
+    width:400px;flex-shrink:0;padding-right:26px;border-right:3px solid var(--ink);
+    overflow-y:auto;padding-bottom:24px;
+  }
+  .layout-left::-webkit-scrollbar{display:none;}
+  .layout-left{scrollbar-width:none;-ms-overflow-style:none;}
+  .layout-right{
+    flex:1;min-width:0;padding-left:26px;
+    overflow-y:auto;padding-bottom:40px;
+  }
+  .layout-right::-webkit-scrollbar{display:none;}
+  .layout-right{scrollbar-width:none;-ms-overflow-style:none;}
+
   @media (max-width:880px){
-    .layout{grid-template-columns:1fr;}
-    .layout-left{position:static;padding-right:0;border-right:none;padding-bottom:20px;border-bottom:3px solid var(--ink);margin-bottom:20px;}
-    .layout-right{padding-left:0;}
+    body{overflow:auto;}
+    .page{height:auto;padding:20px 16px 40px;}
+    .layout{display:block;}
+    .layout-left{width:auto;position:static;padding-right:0;border-right:none;padding-bottom:20px;border-bottom:3px solid var(--ink);margin-bottom:20px;overflow-y:visible;}
+    .layout-right{padding-left:0;overflow-y:visible;}
   }
 
   /* compact 2x2 stat grid — one unified panel, colored dot markers instead of solid fills */
@@ -155,6 +169,7 @@
     background:var(--ink);color:#fff;border-radius:9px;padding:7px 11px;
     transform:translate(-50%,-115%);white-space:nowrap;z-index:5;
     box-shadow:3px 3px 0 rgba(0,0,0,0.15);
+    transition:opacity 0.15s ease, left 0.08s linear, top 0.08s linear;
   }
   .tt-value{font-family:'Sora',sans-serif;font-weight:800;font-size:13px;}
   .tt-date{font-family:'Space Mono',monospace;font-size:10.5px;opacity:0.75;margin-top:1px;}
@@ -200,8 +215,6 @@
     <h1>|| चामुंडा कृपा ||</h1>
     <div class="updated" id="updated-at"></div>
   </header>
-  <div class="sub">Alt coins & memecoins, all in one place — live prices via CoinGecko / DexScreener.</div>
-
   <div class="layout">
     <div class="layout-left">
       <div class="summary">
@@ -242,7 +255,6 @@
     </div>
 
     <div class="layout-right">
-      <div class="section-title">Your holdings</div>
       <div class="cards-grid" id="holdings-grid"></div>
       <div class="empty" id="empty-state" style="display:none;">No assets yet — tap "+ Add asset" to start tracking.</div>
       <div class="loading" id="loading-state" style="display:none;">Loading your portfolio…</div>
@@ -345,8 +357,11 @@ async function loadHoldings(){
     }
   }catch(e){ holdings = []; }
   document.getElementById('loading-state').style.display = 'none';
-  if(holdings.length) await refreshPrices();
-  render();
+  render(); // show saved holdings immediately — don't wait on the network
+  if(holdings.length){
+    await refreshPrices();
+    render(); // update again once live prices arrive
+  }
 }
 async function saveHoldings(){
   try{
@@ -516,7 +531,6 @@ async function refreshPrices(){
 function render(){
   const grid = document.getElementById('holdings-grid');
   const empty = document.getElementById('empty-state');
-  grid.innerHTML = '';
 
   if(!holdings.length){
     empty.style.display = 'block';
@@ -525,6 +539,15 @@ function render(){
   }
 
   window._lastPrices = window._lastPrices || {};
+
+  // record where every existing card currently sits on screen, so we can
+  // smoothly animate it into its new position instead of it just jumping
+  const firstRects = {};
+  grid.querySelectorAll('.coin-card').forEach(el => {
+    firstRects[el.dataset.idx] = el.getBoundingClientRect();
+  });
+
+  grid.innerHTML = '';
 
   // pass 1 — compute every holding's value first, so we know the portfolio
   // total before rendering each card's "% of portfolio"
@@ -540,7 +563,12 @@ function render(){
   const totalValue = computed.reduce((s,c) => s + (c.value||0), 0);
   const totalCost = computed.reduce((s,c) => s + c.cost, 0);
 
-  computed.forEach(({h, idx, p, price, value, cost, pl, plPct}) => {
+  // biggest bags on top — sort display order by current value, highest first
+  // (the underlying holdings array order stays untouched, so add/edit/delete
+  // still reference the correct original index)
+  const sorted = [...computed].sort((a,b) => (b.value||0) - (a.value||0));
+
+  sorted.forEach(({h, idx, p, price, value, cost, pl, plPct}) => {
     // flash the value cell when price actually moved since the last render
     const prevPrice = window._lastPrices[h.id];
     const priceFlash = (price !== null && prevPrice !== undefined && price !== prevPrice) ? (price > prevPrice ? 'flash-up' : 'flash-down') : '';
@@ -552,6 +580,7 @@ function render(){
 
     const card = document.createElement('div');
     card.className = 'coin-card';
+    card.dataset.idx = idx;
     card.innerHTML = `
       <button class="card-remove" data-idx="${idx}">×</button>
       <div class="card-top">
@@ -577,6 +606,25 @@ function render(){
       openChart(idx);
     });
     grid.appendChild(card);
+  });
+
+  // FLIP animation — smoothly slide each card from its old position to its
+  // new one instead of the whole grid just snapping into a new order
+  requestAnimationFrame(() => {
+    grid.querySelectorAll('.coin-card').forEach(el => {
+      const first = firstRects[el.dataset.idx];
+      if(!first) return;
+      const last = el.getBoundingClientRect();
+      const dx = first.left - last.left;
+      const dy = first.top - last.top;
+      if(!dx && !dy) return;
+      el.style.transition = 'none';
+      el.style.transform = `translate(${dx}px, ${dy}px)`;
+      requestAnimationFrame(() => {
+        el.style.transition = 'transform 0.45s cubic-bezier(0.22, 1, 0.36, 1)';
+        el.style.transform = 'translate(0,0)';
+      });
+    });
   });
 
   document.querySelectorAll('.card-remove').forEach(btn => {
@@ -879,6 +927,7 @@ async function prefetchOtherRanges(idx, loaded){
 async function fetchAndDrawChart(idx, days, isSilentRetry){
   const h = holdings[idx];
   if(!h) return;
+  if(!chartModalOpen || currentChartIdx !== idx) return; // modal closed or coin switched — abort stale request
   const loadingEl = document.getElementById('modal-loading');
   const svg = document.getElementById('price-chart');
   const key = `${h.id}_${days}`;
@@ -946,6 +995,7 @@ async function fetchAndDrawChart(idx, days, isSilentRetry){
     loadingEl.textContent = 'No historical data yet — common for very new or thin-liquidity coins.';
     return;
   }
+  if(!chartModalOpen || currentChartIdx !== idx) return; // guard again after the network wait
   loadingEl.style.display = 'none';
   const valuePoints = rawPrices.map(p => [p[0], p[1]*h.amount]);
   drawChart(valuePoints);
@@ -1002,12 +1052,16 @@ function drawChart(points){
     const gl = document.createElementNS(ns,'line');
     gl.setAttribute('x1',0); gl.setAttribute('x2',W); gl.setAttribute('y1',y); gl.setAttribute('y2',y);
     gl.setAttribute('stroke','#E4E2DA'); gl.setAttribute('stroke-width','1'); gl.setAttribute('stroke-dasharray','3,4');
+    gl.style.opacity = '0'; gl.style.transition = 'opacity 0.5s ease ' + (0.15 + i*0.04) + 's';
     svg.appendChild(gl);
+    requestAnimationFrame(() => { gl.style.opacity = '1'; });
     const lbl = document.createElementNS(ns,'text');
     lbl.setAttribute('x',4); lbl.setAttribute('y',Math.max(12,y-4));
     lbl.setAttribute('fill','#5B5E66'); lbl.setAttribute('font-size','11'); lbl.setAttribute('font-family','Space Mono, monospace');
     lbl.textContent = '$'+fmt(v, v<1?4:2);
+    lbl.style.opacity = '0'; lbl.style.transition = 'opacity 0.5s ease ' + (0.15 + i*0.04) + 's';
     svg.appendChild(lbl);
+    requestAnimationFrame(() => { lbl.style.opacity = '1'; });
   }
   [0, Math.floor((points.length-1)/2), points.length-1].forEach((idx,i,arr) => {
     const pt = points[idx]; if(!pt) return;
@@ -1018,7 +1072,9 @@ function drawChart(points){
     t.setAttribute('fill','#5B5E66'); t.setAttribute('font-size','11'); t.setAttribute('font-family','Space Mono, monospace');
     t.setAttribute('text-anchor', i===0?'start':(i===arr.length-1?'end':'middle'));
     t.textContent = new Date(pt[0]).toLocaleDateString(undefined,{month:'short',day:'numeric'});
+    t.style.opacity = '0'; t.style.transition = 'opacity 0.5s ease 0.3s';
     svg.appendChild(t);
+    requestAnimationFrame(() => { t.style.opacity = '1'; });
   });
 
   const area = document.createElementNS(ns,'path');
@@ -1048,12 +1104,14 @@ function drawChart(points){
   crosshairLine.setAttribute('y1', padTop); crosshairLine.setAttribute('y2', H-padBottom);
   crosshairLine.setAttribute('stroke', '#15171A'); crosshairLine.setAttribute('stroke-width','1');
   crosshairLine.setAttribute('opacity','0');
+  crosshairLine.style.transition = 'opacity 0.15s ease, x1 0.06s linear, x2 0.06s linear';
   svg.appendChild(crosshairLine);
 
   const crosshairDot = document.createElementNS(ns,'circle');
   crosshairDot.setAttribute('r','5'); crosshairDot.setAttribute('fill', color);
   crosshairDot.setAttribute('stroke','#fff'); crosshairDot.setAttribute('stroke-width','2');
   crosshairDot.setAttribute('opacity','0');
+  crosshairDot.style.transition = 'opacity 0.15s ease, cx 0.06s linear, cy 0.06s linear';
   svg.appendChild(crosshairDot);
 
   setupChartTooltip(svg, points, xFor, yFor, crosshairLine, crosshairDot);
