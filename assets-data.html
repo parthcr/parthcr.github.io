@@ -24,7 +24,7 @@
     padding:32px 16px;
   }
   .wrap{
-    max-width:820px;
+    max-width:960px;
     margin:0 auto;
   }
   h1{
@@ -42,6 +42,7 @@
   table{
     width:100%;
     border-collapse:collapse;
+    table-layout:fixed;
   }
   thead th{
     text-align:left;
@@ -49,7 +50,7 @@
     letter-spacing:.02em;
     color:var(--muted);
     font-weight:600;
-    padding:12px 14px;
+    padding:8px 8px;
     border-bottom:1px solid var(--border);
     border-right:1px solid var(--border);
     background:#fafafa;
@@ -57,10 +58,50 @@
   thead th:last-child{
     border-right:none;
   }
+  .col-head{
+    display:flex;
+    align-items:center;
+    gap:4px;
+  }
+  .col-name{
+    flex:1;
+    overflow:hidden;
+    text-overflow:ellipsis;
+    white-space:nowrap;
+    cursor:pointer;
+    user-select:none;
+    padding:4px 2px;
+  }
+  .col-name:hover{
+    color:var(--accent);
+  }
+  .col-sum-btn, .col-del-btn{
+    border:1px solid var(--border);
+    background:#fff;
+    color:var(--muted);
+    font-size:11px;
+    border-radius:4px;
+    width:20px;
+    height:20px;
+    line-height:1;
+    cursor:pointer;
+    flex:none;
+    padding:0;
+  }
+  .col-sum-btn.active{
+    background:var(--accent-soft);
+    color:var(--accent);
+    border-color:var(--accent);
+  }
+  .col-del-btn:hover{
+    color:var(--danger);
+    border-color:var(--danger);
+  }
   tbody td{
     padding:0;
     border-bottom:1px solid var(--border);
     border-right:1px solid var(--border);
+    vertical-align:top;
   }
   tbody tr td:last-child{
     border-right:none;
@@ -68,40 +109,73 @@
   tbody tr:last-child td{
     border-bottom:none;
   }
-  td input{
+  td textarea{
+    display:block;
     width:100%;
     border:none;
     background:transparent;
     padding:12px 14px;
     font-size:14px;
+    font-family:inherit;
     color:var(--text);
     outline:none;
+    resize:none;
+    overflow:hidden;
+    white-space:pre-wrap;
+    word-break:break-word;
+    line-height:1.4;
+    min-height:44px;
   }
-  td input:focus{
+  td textarea:focus{
     background:var(--accent-soft);
   }
-  td input::placeholder{
+  td textarea::placeholder{
     color:#c9c9c6;
   }
-  td.del{
-    width:36px;
-    text-align:center;
+  td textarea[readonly]{
+    cursor:default;
   }
-  .del-btn{
+  td.actions, th.actions{
+    width:64px;
+    text-align:center;
+    white-space:nowrap;
+  }
+  .del-btn, .edit-btn{
     border:none;
     background:transparent;
     color:var(--muted);
-    font-size:16px;
+    font-size:15px;
     cursor:pointer;
-    padding:4px 8px;
+    padding:4px 6px;
     line-height:1;
   }
   .del-btn:hover{
     color:var(--danger);
   }
+  .edit-btn:hover{
+    color:var(--accent);
+  }
+  .edit-btn.active{
+    color:var(--accent);
+  }
+  tfoot td{
+    padding:10px 14px;
+    border-top:2px solid var(--border);
+    border-right:1px solid var(--border);
+    font-size:15px;
+    font-weight:700;
+    background:#fafafa;
+  }
+  tfoot td:last-child{
+    border-right:none;
+  }
+  tfoot .total-value{
+    text-align:right;
+    color:var(--accent);
+  }
   .footer{
     display:flex;
-    justify-content:space-between;
+    justify-content:flex-start;
     align-items:center;
     padding:12px 14px;
     background:#fafafa;
@@ -131,9 +205,57 @@
     background:#fff;
     color:var(--text);
   }
-  .hint{
-    font-size:12px;
-    color:var(--muted);
+  .lock-overlay{
+    position:fixed;
+    inset:0;
+    background:var(--bg);
+    display:none;
+    align-items:center;
+    justify-content:center;
+    z-index:100;
+    padding:16px;
+  }
+  .lock-box{
+    background:var(--card);
+    border:1px solid var(--border);
+    border-radius:10px;
+    padding:28px 24px;
+    width:100%;
+    max-width:280px;
+    text-align:center;
+  }
+  .lock-box .lock-icon{
+    font-size:28px;
+    margin-bottom:10px;
+  }
+  .lock-box h2{
+    font-size:16px;
+    margin:0 0 16px 0;
+    color:var(--text);
+  }
+  .lock-box input{
+    width:100%;
+    text-align:center;
+    letter-spacing:6px;
+    font-size:20px;
+    padding:10px;
+    border:1px solid var(--border);
+    border-radius:6px;
+    outline:none;
+    margin-bottom:12px;
+  }
+  .lock-box input:focus{
+    border-color:var(--accent);
+  }
+  .lock-box .add-btn{
+    width:100%;
+    padding:10px;
+  }
+  .lock-error{
+    color:var(--danger);
+    font-size:13px;
+    min-height:18px;
+    margin-bottom:8px;
   }
 </style>
 </head>
@@ -143,97 +265,303 @@
   <div class="card">
     <table>
       <thead>
-        <tr>
-          <th>Name</th>
-          <th>Balance</th>
-          <th>Amount</th>
-          <th>Need to Add</th>
-          <th></th>
-        </tr>
+        <tr id="headRow"></tr>
       </thead>
       <tbody id="rows"></tbody>
+      <tfoot>
+        <tr id="footRow"></tr>
+      </tfoot>
     </table>
     <div class="footer">
       <div class="footer-left">
         <button class="add-btn" onclick="addRow()">+ Add Row</button>
+        <button class="add-btn secondary" onclick="addColumn()">+ Add Column</button>
         <button class="add-btn secondary" onclick="exportData()">Export</button>
         <button class="add-btn secondary" onclick="document.getElementById('fileInput').click()">Import</button>
         <input type="file" id="fileInput" accept=".json" style="display:none" onchange="importData(event)">
+        <button class="add-btn secondary" id="pinBtn" onclick="onPinBtnClick()">Set PIN</button>
+        <button class="add-btn secondary" id="lockBtn" onclick="lockNow()" style="display:none">Lock</button>
       </div>
-      <span class="hint">Cells are optional — leave any blank. Auto-saves in this browser.</span>
     </div>
+  </div>
+</div>
+
+<div class="lock-overlay" id="lockOverlay">
+  <div class="lock-box">
+    <div class="lock-icon">🔒</div>
+    <h2>Enter PIN to unlock</h2>
+    <div class="lock-error" id="lockError"></div>
+    <input type="password" id="lockInput" inputmode="numeric" maxlength="6" placeholder="••••">
+    <button class="add-btn" onclick="tryUnlock()">Unlock</button>
   </div>
 </div>
 
 <script>
   const rowsEl = document.getElementById('rows');
-  const STORAGE_KEY = 'ledger-table-data';
+  const headRowEl = document.getElementById('headRow');
+  const footRowEl = document.getElementById('footRow');
+  const SHEET_KEY = 'ledger-sheet-v2';
+  const OLD_KEY = 'ledger-table-data';
 
-  function makeRow(values = ['', '', '', '']) {
-    const tr = document.createElement('tr');
+  let columns = []; // [{name, isSum}]
 
-    values.forEach((val) => {
-      const td = document.createElement('td');
-      const input = document.createElement('input');
-      input.type = 'text';
-      input.value = val;
-      input.placeholder = '—';
-      input.addEventListener('input', saveData);
-      td.appendChild(input);
-      tr.appendChild(td);
+  function defaultColumns() {
+    return [
+      { name: 'Name', isSum: false },
+      { name: 'Balance', isSum: false },
+      { name: 'Amount', isSum: false },
+      { name: 'Need to Add', isSum: false },
+      { name: 'Total', isSum: true }
+    ];
+  }
+
+  function autoGrow(el) {
+    el.style.height = 'auto';
+    el.style.height = el.scrollHeight + 'px';
+  }
+
+  // ---------- header ----------
+  function renderHeader() {
+    headRowEl.innerHTML = '';
+    columns.forEach((col, idx) => {
+      const th = document.createElement('th');
+      const div = document.createElement('div');
+      div.className = 'col-head';
+
+      const span = document.createElement('span');
+      span.className = 'col-name';
+      span.textContent = col.name;
+      span.title = 'Click to rename';
+      span.onclick = () => renameColumn(idx);
+
+      const sumBtn = document.createElement('button');
+      sumBtn.className = 'col-sum-btn' + (col.isSum ? ' active' : '');
+      sumBtn.textContent = '\u03a3';
+      sumBtn.title = col.isSum ? 'Sum ON \u2014 click to turn off' : 'Click to sum this column';
+      sumBtn.onclick = () => toggleSum(idx);
+
+      const delBtn = document.createElement('button');
+      delBtn.className = 'col-del-btn';
+      delBtn.innerHTML = '&times;';
+      delBtn.title = 'Remove column';
+      delBtn.onclick = () => removeColumn(idx);
+
+      div.appendChild(span);
+      div.appendChild(sumBtn);
+      div.appendChild(delBtn);
+      th.appendChild(div);
+      headRowEl.appendChild(th);
     });
+    const actionsTh = document.createElement('th');
+    actionsTh.className = 'actions';
+    headRowEl.appendChild(actionsTh);
+  }
 
-    const delTd = document.createElement('td');
-    delTd.className = 'del';
+  function renameColumn(idx) {
+    const name = prompt('Rename column:', columns[idx].name);
+    if (name === null) return;
+    const trimmed = name.trim();
+    if (!trimmed) return;
+    columns[idx].name = trimmed;
+    renderHeader();
+    saveData();
+  }
+
+  function toggleSum(idx) {
+    columns[idx].isSum = !columns[idx].isSum;
+    renderHeader();
+    saveData();
+  }
+
+  function addColumn() {
+    const name = prompt('New column name:');
+    if (name === null) return;
+    const trimmed = name.trim();
+    if (!trimmed) return;
+    const currentRows = getAllData();
+    columns.push({ name: trimmed, isSum: false });
+    currentRows.forEach(r => r.push(''));
+    rebuildRows(currentRows);
+  }
+
+  function removeColumn(idx) {
+    if (columns.length <= 1) {
+      alert('At least one column is required.');
+      return;
+    }
+    if (!confirm('Remove column "' + columns[idx].name + '"? This deletes its data in every row.')) return;
+    const currentRows = getAllData();
+    columns.splice(idx, 1);
+    currentRows.forEach(r => r.splice(idx, 1));
+    rebuildRows(currentRows);
+  }
+
+  // ---------- rows ----------
+  function makeRow(values, startLocked = true) {
+    values = values || columns.map(() => '');
+    const tr = document.createElement('tr');
+    const hasData = values.some(v => (v || '').trim() !== '');
+    let locked = startLocked && hasData;
+
+    for (let i = 0; i < columns.length; i++) {
+      const val = values[i] || '';
+      const td = document.createElement('td');
+      const textarea = document.createElement('textarea');
+      textarea.rows = 1;
+      textarea.value = val;
+      textarea.placeholder = '\u2014';
+      if (locked) textarea.readOnly = true;
+      textarea.addEventListener('input', (e) => {
+        autoGrow(e.target);
+        saveData();
+      });
+      td.appendChild(textarea);
+      tr.appendChild(td);
+    }
+
+    const actionsTd = document.createElement('td');
+    actionsTd.className = 'actions';
+
+    const editBtn = document.createElement('button');
+    editBtn.className = 'edit-btn' + (locked ? '' : ' active');
+    editBtn.innerHTML = locked ? '&#9998;' : '&#10003;';
+    editBtn.title = locked ? 'Edit row' : 'Done editing';
+    editBtn.onclick = () => {
+      locked = !locked;
+      tr.querySelectorAll('textarea').forEach(t => { t.readOnly = locked; });
+      editBtn.innerHTML = locked ? '&#9998;' : '&#10003;';
+      editBtn.title = locked ? 'Edit row' : 'Done editing';
+      editBtn.classList.toggle('active', !locked);
+      if (!locked) tr.querySelector('textarea').focus();
+    };
+    actionsTd.appendChild(editBtn);
+
     const delBtn = document.createElement('button');
     delBtn.className = 'del-btn';
     delBtn.innerHTML = '&times;';
+    delBtn.title = 'Delete row';
     delBtn.onclick = () => { tr.remove(); saveData(); };
-    delTd.appendChild(delBtn);
-    tr.appendChild(delTd);
+    actionsTd.appendChild(delBtn);
 
+    tr.appendChild(actionsTd);
     return tr;
   }
 
   function addRow(values) {
-    rowsEl.appendChild(makeRow(values));
+    const tr = makeRow(values, false);
+    rowsEl.appendChild(tr);
+    tr.querySelectorAll('textarea').forEach(autoGrow);
     saveData();
   }
 
-  function getAllData() {
-    const rows = [];
-    rowsEl.querySelectorAll('tr').forEach((tr) => {
-      const inputs = tr.querySelectorAll('input');
-      rows.push(Array.from(inputs).map(i => i.value));
+  function rebuildRows(rowsData, lockExisting = true) {
+    rowsEl.innerHTML = '';
+    rowsData.forEach(row => {
+      const tr = makeRow(row, lockExisting);
+      rowsEl.appendChild(tr);
+      tr.querySelectorAll('textarea').forEach(autoGrow);
     });
-    return rows;
+    renderHeader();
+    renderFooter();
+    persist();
+  }
+
+  function getAllData() {
+    const data = [];
+    rowsEl.querySelectorAll('tr').forEach((tr) => {
+      const inputs = tr.querySelectorAll('textarea');
+      data.push(Array.from(inputs).map(i => i.value));
+    });
+    return data;
+  }
+
+  // ---------- footer / sums ----------
+  function renderFooter() {
+    footRowEl.innerHTML = '';
+    columns.forEach((col, idx) => {
+      const td = document.createElement('td');
+      if (col.isSum) {
+        let sum = 0;
+        rowsEl.querySelectorAll('tr').forEach(tr => {
+          const inputs = tr.querySelectorAll('textarea');
+          const cell = inputs[idx];
+          if (cell) {
+            const num = parseFloat((cell.value || '').replace(/,/g, ''));
+            if (!isNaN(num)) sum += num;
+          }
+        });
+        td.className = 'total-value';
+        td.textContent = sum === 0 ? '' : sum.toLocaleString('en-IN', { maximumFractionDigits: 2 });
+      }
+      footRowEl.appendChild(td);
+    });
+    const actionsTd = document.createElement('td');
+    actionsTd.className = 'actions';
+    footRowEl.appendChild(actionsTd);
+  }
+
+  // ---------- persistence ----------
+  function persist() {
+    localStorage.setItem(SHEET_KEY, JSON.stringify({ columns, rows: getAllData() }));
   }
 
   function saveData() {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(getAllData()));
+    persist();
+    renderFooter();
   }
 
-  function loadSavedData() {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) {
-      for (let i = 0; i < 5; i++) addRow();
-      return;
+  function loadSheet() {
+    const raw = localStorage.getItem(SHEET_KEY);
+    if (raw) {
+      try {
+        const parsed = JSON.parse(raw);
+        if (parsed && Array.isArray(parsed.columns) && parsed.columns.length && Array.isArray(parsed.rows)) {
+          columns = parsed.columns;
+          renderHeader();
+          parsed.rows.forEach(row => {
+            const tr = makeRow(row, true);
+            rowsEl.appendChild(tr);
+            tr.querySelectorAll('textarea').forEach(autoGrow);
+          });
+          renderFooter();
+          return;
+        }
+      } catch (e) { /* fall through */ }
     }
-    try {
-      const data = JSON.parse(raw);
-      if (Array.isArray(data) && data.length) {
-        data.forEach(row => rowsEl.appendChild(makeRow(row)));
-      } else {
-        for (let i = 0; i < 5; i++) addRow();
-      }
-    } catch (e) {
+
+    // migrate old single-array format, or start fresh
+    columns = defaultColumns();
+    let rows = [];
+    const oldRaw = localStorage.getItem(OLD_KEY);
+    if (oldRaw) {
+      try {
+        const oldData = JSON.parse(oldRaw);
+        if (Array.isArray(oldData)) {
+          rows = oldData.map(r => {
+            const arr = (r || []).slice(0, columns.length);
+            while (arr.length < columns.length) arr.push('');
+            return arr;
+          });
+        }
+      } catch (e) { /* ignore */ }
+    }
+    renderHeader();
+    if (rows.length) {
+      rows.forEach(row => {
+        const tr = makeRow(row, true);
+        rowsEl.appendChild(tr);
+        tr.querySelectorAll('textarea').forEach(autoGrow);
+      });
+    } else {
       for (let i = 0; i < 5; i++) addRow();
     }
+    renderFooter();
+    persist();
   }
 
   function exportData() {
-    const data = getAllData();
-    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+    const payload = { columns, rows: getAllData() };
+    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
@@ -249,10 +577,20 @@
     reader.onload = (e) => {
       try {
         const data = JSON.parse(e.target.result);
-        if (!Array.isArray(data)) throw new Error('bad format');
-        rowsEl.innerHTML = '';
-        data.forEach(row => rowsEl.appendChild(makeRow(row)));
-        saveData();
+        if (data && Array.isArray(data.columns) && Array.isArray(data.rows)) {
+          columns = data.columns;
+          rebuildRows(data.rows);
+        } else if (Array.isArray(data)) {
+          // legacy export (plain array of rows), map to current columns
+          const rows = data.map(r => {
+            const arr = (r || []).slice(0, columns.length);
+            while (arr.length < columns.length) arr.push('');
+            return arr;
+          });
+          rebuildRows(rows);
+        } else {
+          throw new Error('bad format');
+        }
       } catch (err) {
         alert('Could not read that file. Make sure it is a Ledger export (.json).');
       }
@@ -261,7 +599,76 @@
     event.target.value = '';
   }
 
-  loadSavedData();
+  loadSheet();
+
+  // ---- PIN lock ----
+  const PIN_KEY = 'ledger-pin';
+  const lockOverlay = document.getElementById('lockOverlay');
+  const lockInput = document.getElementById('lockInput');
+  const lockError = document.getElementById('lockError');
+  const pinBtn = document.getElementById('pinBtn');
+  const lockBtn = document.getElementById('lockBtn');
+
+  function hasPin() {
+    return !!localStorage.getItem(PIN_KEY);
+  }
+
+  function refreshPinButtons() {
+    pinBtn.textContent = hasPin() ? 'Change PIN' : 'Set PIN';
+    lockBtn.style.display = hasPin() ? '' : 'none';
+  }
+
+  function onPinBtnClick() {
+    if (hasPin()) {
+      const current = prompt('Enter current PIN to change it:');
+      if (current === null) return;
+      if (current !== localStorage.getItem(PIN_KEY)) {
+        alert('Incorrect current PIN.');
+        return;
+      }
+    }
+    const newPin = prompt('Set a new PIN (4-6 digits):');
+    if (newPin === null || newPin.trim() === '') return;
+    if (!/^\d{4,6}$/.test(newPin.trim())) {
+      alert('PIN must be 4-6 digits.');
+      return;
+    }
+    const confirmPin = prompt('Confirm new PIN:');
+    if (confirmPin !== newPin.trim()) {
+      alert('PINs did not match. Try again.');
+      return;
+    }
+    localStorage.setItem(PIN_KEY, newPin.trim());
+    refreshPinButtons();
+    alert('PIN saved.');
+  }
+
+  function lockNow() {
+    if (!hasPin()) return;
+    lockError.textContent = '';
+    lockInput.value = '';
+    lockOverlay.style.display = 'flex';
+    setTimeout(() => lockInput.focus(), 50);
+  }
+
+  function tryUnlock() {
+    if (lockInput.value === localStorage.getItem(PIN_KEY)) {
+      lockOverlay.style.display = 'none';
+      lockError.textContent = '';
+      lockInput.value = '';
+    } else {
+      lockError.textContent = 'Incorrect PIN, try again.';
+      lockInput.value = '';
+      lockInput.focus();
+    }
+  }
+
+  lockInput.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') tryUnlock();
+  });
+
+  refreshPinButtons();
+  if (hasPin()) lockNow();
 </script>
 </body>
 </html>
