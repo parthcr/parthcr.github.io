@@ -5,78 +5,95 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Gold Challenge Tracker</title>
 <style>
+  :root{
+    --bg:#f7f7f5;
+    --card:#ffffff;
+    --line:#e2e2e0;
+    --header-bg:#fafafa;
+    --text:#1f1f1f;
+    --label:#8a8a86;
+    --green:#2f6f4f;
+    --green-tint:#eaf3ee;
+    --red:#b3413a;
+    --red-tint:#f7ece9;
+    --candle-green:#16a34a;
+    --candle-red:#dc2626;
+  }
   * { box-sizing: border-box; }
   body {
     font-family: -apple-system, 'Segoe UI', Arial, sans-serif;
-    background: #0b0d10;
-    color: #e8e4da;
+    background: var(--bg);
+    color: var(--text);
     margin: 0;
     padding: 0;
   }
   .wrap { max-width: 720px; margin: 0 auto; }
-  .header { padding: 28px 20px 20px; border-bottom: 1px solid #23262b; }
-  .eyebrow { font-size: 11px; letter-spacing: 2px; color: #c9a24b; font-weight: 600; margin-bottom: 6px; }
-  h1 { font-size: 26px; margin: 0 0 4px; font-weight: 700; color: #f4f1ea; }
-  .sub { font-size: 13px; color: #8b8f96; }
+  .header { padding: 28px 20px 20px; border-bottom: 1px solid var(--line); }
+  h1 { font-size: 26px; margin: 0 0 4px; font-weight: 700; color: var(--text); }
+  .sub { font-size: 13px; color: var(--label); }
   .row { display: flex; gap: 8px; padding: 16px 20px 0; }
   .scenario-btn {
-    flex: 1; padding: 10px; border-radius: 8px; border: 1px solid #2a2d33;
-    background: transparent; color: #8b8f96; font-size: 13px; font-weight: 600; cursor: pointer;
+    flex: 1; padding: 10px; border-radius: 8px; border: 1px solid var(--line);
+    background: var(--card); color: var(--label); font-size: 13px; font-weight: 600; cursor: pointer;
   }
-  .scenario-btn.active { border-color: #c9a24b; background: rgba(201,162,75,0.12); color: #c9a24b; }
+  .scenario-btn.active { border-color: var(--green); background: var(--green-tint); color: var(--green); }
   .balance-row { padding: 16px 20px 0; display: flex; gap: 10px; align-items: center; }
-  .balance-row label { font-size: 12px; color: #8b8f96; min-width: 110px; }
+  .balance-row label { font-size: 12px; color: var(--label); min-width: 110px; }
   #balanceInput {
-    flex: 1; background: #16181c; border: 1px solid #2a2d33; border-radius: 6px;
-    padding: 8px 10px; color: #f4f1ea; font-size: 14px; outline: none;
+    flex: 1; background: var(--card); border: 1px solid var(--line); border-radius: 6px;
+    padding: 8px 10px; color: var(--text); font-size: 14px; outline: none;
   }
+  #balanceInput:focus { background: var(--green-tint); border-color: var(--green); }
   #resetBtn {
-    font-size: 12px; color: #8b8f96; background: none; border: 1px solid #2a2d33;
+    font-size: 12px; color: var(--label); background: var(--card); border: 1px solid var(--line);
     border-radius: 6px; padding: 8px 12px; cursor: pointer;
   }
+  #resetBtn:hover { background: var(--header-bg); }
   .progress-wrap { padding: 20px 20px 0; }
-  .progress-labels { display: flex; justify-content: space-between; font-size: 12px; color: #8b8f96; margin-bottom: 6px; }
-  .progress-bar { height: 6px; background: #1c1e23; border-radius: 3px; overflow: hidden; }
-  .progress-fill { height: 100%; background: linear-gradient(90deg,#c9a24b,#e8c874); transition: width .3s; }
+  .progress-labels { display: flex; justify-content: space-between; font-size: 12px; color: var(--label); margin-bottom: 6px; }
+  .progress-bar { height: 6px; background: var(--header-bg); border: 1px solid var(--line); border-radius: 3px; overflow: hidden; }
+  .progress-fill { height: 100%; background: var(--green); transition: width .3s; }
   .card {
-    margin: 20px 20px 0; background: #141619; border: 1px solid #23262b;
+    margin: 20px 20px 0; background: var(--card); border: 1px solid var(--line);
     border-radius: 12px; padding: 20px;
   }
-  .card-title { font-size: 11px; letter-spacing: 1.5px; color: #8b8f96; margin-bottom: 14px; }
+  .card-title { font-size: 11px; letter-spacing: 1.5px; color: var(--label); margin-bottom: 14px; text-transform: uppercase; }
   .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
-  .stat-label { font-size: 11px; color: #8b8f96; margin-bottom: 2px; }
-  .stat-value { font-size: 17px; font-weight: 700; color: #f4f1ea; }
-  .stat-value.risk-high { color: #e05c5c; }
+  .stat-label { font-size: 11px; color: var(--label); margin-bottom: 2px; }
+  .stat-value { font-size: 17px; font-weight: 700; color: var(--text); }
+  .stat-value.risk-high { color: var(--red); }
   .warn-box {
-    margin-top: 14px; font-size: 12px; color: #e0a85c; background: rgba(224,168,92,0.1);
-    padding: 8px 10px; border-radius: 6px;
+    margin-top: 14px; font-size: 12px; color: var(--red); background: var(--red-tint);
+    padding: 8px 10px; border-radius: 6px; border: 1px solid var(--line);
   }
   .btn-row { display: flex; gap: 10px; padding: 16px 20px; }
   .trade-btn {
     flex: 1; padding: 14px; border-radius: 10px; font-size: 14px; font-weight: 700; cursor: pointer;
   }
-  #lossBtn { border: 1px solid #4a2323; background: rgba(224,92,92,0.1); color: #e05c5c; }
-  #winBtn { border: 1px solid #2f4a2f; background: rgba(92,224,120,0.1); color: #6fdb8f; }
+  #lossBtn { border: 1px solid var(--red); background: var(--red-tint); color: var(--red); }
+  #lossBtn:hover { background: #f2ddd8; }
+  #winBtn { border: 1px solid var(--green); background: var(--green-tint); color: var(--green); }
+  #winBtn:hover { background: #dcece3; }
   .log-section { padding: 0 20px 40px; }
-  .log-title { font-size: 11px; letter-spacing: 1.5px; color: #8b8f96; margin: 10px 0; }
-  .log-empty { font-size: 13px; color: #5b5f66; padding: 20px 0; text-align: center; }
+  .log-title { font-size: 11px; letter-spacing: 1.5px; color: var(--label); margin: 10px 0; text-transform: uppercase; }
+  .log-empty { font-size: 13px; color: var(--label); padding: 20px 0; text-align: center; }
   .log-list { display: flex; flex-direction: column; gap: 8px; }
   .log-item {
     display: flex; justify-content: space-between; align-items: center;
-    background: #141619; border: 1px solid #23262b; border-radius: 8px; padding: 10px 14px; font-size: 13px;
+    background: var(--card); border: 1px solid var(--line); border-radius: 8px; padding: 10px 14px; font-size: 13px;
   }
-  .log-meta { color: #8b8f96; }
-  .log-delta.win { color: #6fdb8f; font-weight: 700; }
-  .log-delta.loss { color: #e05c5c; font-weight: 700; }
-  .log-after { color: #f4f1ea; font-weight: 600; }
+  .log-meta { color: var(--label); }
+  .log-delta.win { color: var(--candle-green); font-weight: 700; }
+  .log-delta.loss { color: var(--candle-red); font-weight: 700; }
+  .log-after.win { color: var(--candle-green); font-weight: 700; }
+  .log-after.loss { color: var(--candle-red); font-weight: 700; }
 </style>
 </head>
 <body>
 <div class="wrap">
   <div class="header">
-    <div class="eyebrow">XAUUSD · XM LOT LADDER</div>
     <h1>Gold Challenge Tracker</h1>
-    <div class="sub">Balance decides the step. Step decides the lot. You decide win or loss.</div>
+    <div class="sub" id="subLine"></div>
   </div>
 
   <div class="row">
@@ -171,6 +188,29 @@ var LADDER_4 = [
 [71,10906,1.3,4,8],[72,11946,1.4,4,8],[73,13066,1.6,4,8],[74,14346,1.7,4,8],[75,15706,1.9,4,8],
 [76,17226,2.1,4,8],[77,18906,2.3,4,8]
 ];
+
+var TAGLINES = [
+  "Balance decides the step. Step decides the lot. You decide win or loss.",
+  "The ladder doesn't rush. Neither should you.",
+  "Small lots, steady hands, compounding patience.",
+  "Every step is earned, not skipped.",
+  "Discipline is the real lot size.",
+  "One trade at a time. One step at a time.",
+  "The market doesn't owe you today's win.",
+  "Risk small, stay long enough to win big.",
+  "Green candles are earned in silence, not chased.",
+  "Your edge is patience — the ladder just tracks it.",
+  "No revenge trades. Just the next step.",
+  "Consistency climbs the ladder. Emotion falls off it.",
+  "Protect the balance, and the balance protects you.",
+  "Slow lots build fast confidence.",
+  "The step doesn't care how you feel about the last trade."
+];
+
+function setTagline(){
+  var pick = TAGLINES[Math.floor(Math.random() * TAGLINES.length)];
+  document.getElementById('subLine').textContent = pick;
+}
 
 var state = { scenario: '25', balance: 10, log: [], target: 20000 };
 
@@ -291,7 +331,7 @@ function render(){
       html += '<div class="log-item">' +
         '<div class="log-meta">#' + t.n + ' · Step ' + t.step + ' · ' + t.lot + ' lot</div>' +
         '<div class="log-delta ' + cls + '">' + sign + money(delta) + '</div>' +
-        '<div class="log-after">' + money(t.after) + '</div>' +
+        '<div class="log-after ' + cls + '">' + money(t.after) + '</div>' +
       '</div>';
     }
     html += '</div>';
@@ -307,6 +347,7 @@ document.getElementById('balanceInput').addEventListener('change', function(e){
 });
 
 loadState();
+setTagline();
 document.getElementById('btn25').classList.toggle('active', state.scenario === '25');
 document.getElementById('btn4').classList.toggle('active', state.scenario === '4');
 render();
