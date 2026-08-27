@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Calculators</title>
+<style>
+  :root{
+    --bg:#f7f7f5;
+    --card:#ffffff;
+    --line:#e2e2e0;
+    --header-bg:#fafafa;
+    --text:#1f1f1f;
+    --label:#8a8a86;
+    --green:#2f6f4f;
+    --green-tint:#eaf3ee;
+    --red:#b3413a;
+    --red-tint:#f7ece9;
+    --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    --mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    min-height:100vh;
+    background:var(--bg);
+    color:var(--text);
+    font-family:var(--sans);
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    padding:56px 20px 60px;
+  }
+  .top{
+    width:100%;
+    max-width:900px;
+    display:flex;
+    align-items:baseline;
+    justify-content:space-between;
+    margin-bottom:32px;
+  }
+  h1{
+    font-size:18px;
+    font-weight:600;
+    margin:0;
+    letter-spacing:-0.01em;
+  }
+  .back{
+    font-size:12px;
+    color:var(--label);
+    text-decoration:none;
+    font-family:var(--mono);
+    letter-spacing:0.02em;
+  }
+  .back:hover{ color:var(--text); }
+
+  .grid{
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:16px;
+    width:100%;
+    max-width:900px;
+  }
+  @media (max-width:640px){
+    .grid{ grid-template-columns:1fr; }
+  }
+
+  .card{
+    background:var(--card);
+    border:1px solid var(--line);
+    border-radius:8px;
+    padding:20px;
+    display:flex;
+    flex-direction:column;
+    gap:12px;
+  }
+  .card-title{
+    font-size:13px;
+    font-weight:600;
+    color:var(--text);
+  }
+  .card-sub{
+    font-size:11.5px;
+    color:var(--label);
+    margin-top:-8px;
+  }
+
+  .input-row{
+    display:flex;
+    gap:8px;
+  }
+  .input-row input{
+    flex:1;
+    min-width:0;
+    border:1px solid var(--line);
+    background:var(--bg);
+    border-radius:6px;
+    padding:10px 12px;
+    font-size:14px;
+    font-family:var(--mono);
+    color:var(--text);
+    outline:none;
+  }
+  .input-row input:focus{
+    background:var(--green-tint);
+    border-color:var(--green);
+  }
+
+  button.go-btn{
+    border:1px solid var(--green);
+    color:var(--green);
+    background:transparent;
+    font-size:13px;
+    font-weight:600;
+    padding:0 18px;
+    border-radius:6px;
+    cursor:pointer;
+    white-space:nowrap;
+  }
+  button.go-btn:hover{
+    background:var(--green-tint);
+  }
+
+  .result{
+    font-size:22px;
+    font-weight:600;
+    color:var(--green);
+    min-height:30px;
+    letter-spacing:-0.01em;
+  }
+  .error{
+    font-size:12.5px;
+    color:var(--red);
+    background:var(--red-tint);
+    border-radius:6px;
+    padding:8px 10px;
+    display:none;
+  }
+</style>
+</head>
+<body>
+
+  <div class="top">
+    <h1>Calculators</h1>
+    <a class="back" href="index.html">&larr; back</a>
+  </div>
+
+  <div class="grid">
+
+    <div class="card">
+      <div class="card-title">Gold Range</div>
+      <div class="card-sub">4-digit gold price</div>
+      <div class="input-row">
+        <input type="text" inputmode="numeric" id="gr-input" placeholder="e.g. 3451" maxlength="4">
+        <button class="go-btn" onclick="calcGoldRange()">Go</button>
+      </div>
+      <div class="error" id="gr-error"></div>
+      <div class="result" id="gr-result"></div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Gold Opening Price</div>
+      <div class="card-sub">4-digit gold price</div>
+      <div class="input-row">
+        <input type="text" inputmode="numeric" id="go-input" placeholder="e.g. 3451" maxlength="4">
+        <button class="go-btn" onclick="calcGoldOpening()">Go</button>
+      </div>
+      <div class="error" id="go-error"></div>
+      <div class="result" id="go-result"></div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">BTC Previous Day Movement</div>
+      <div class="card-sub">BTC price (any number)</div>
+      <div class="input-row">
+        <input type="text" inputmode="decimal" id="bp-input" placeholder="e.g. 64230">
+        <button class="go-btn" onclick="calcBtcPrev()">Go</button>
+      </div>
+      <div class="error" id="bp-error"></div>
+      <div class="result" id="bp-result"></div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">BTC High/Low Candle</div>
+      <div class="card-sub">BTC price (any number)</div>
+      <div class="input-row">
+        <input type="text" inputmode="decimal" id="bc-input" placeholder="e.g. 64230">
+        <button class="go-btn" onclick="calcBtcCandle()">Go</button>
+      </div>
+      <div class="error" id="bc-error"></div>
+      <div class="result" id="bc-result"></div>
+    </div>
+
+  </div>
+
+<script>
+  function fmt(n){
+    return n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 4 });
+  }
+
+  function showError(prefix, msg){
+    document.getElementById(prefix + '-error').textContent = msg;
+    document.getElementById(prefix + '-error').style.display = 'block';
+    document.getElementById(prefix + '-result').textContent = '';
+  }
+  function clearError(prefix){
+    document.getElementById(prefix + '-error').style.display = 'none';
+  }
+  function showResult(prefix, val){
+    document.getElementById(prefix + '-result').textContent = fmt(val);
+  }
+
+  function digitSum(str){
+    return str.split('').reduce((s, ch) => s + parseInt(ch, 10), 0);
+  }
+
+  function validateGoldInput(prefix){
+    const raw = document.getElementById(prefix + '-input').value.trim();
+    if(!/^\d{4}$/.test(raw)){
+      showError(prefix, 'Enter exactly 4 digits.');
+      return null;
+    }
+    clearError(prefix);
+    return raw;
+  }
+
+  function validateBtcInput(prefix){
+    const raw = document.getElementById(prefix + '-input').value.trim();
+    const num = parseFloat(raw);
+    if(raw === '' || isNaN(num) || num <= 0){
+      showError(prefix, 'Enter a valid positive number.');
+      return null;
+    }
+    clearError(prefix);
+    return num;
+  }
+
+  function calcGoldRange(){
+    const digits = validateGoldInput('gr');
+    if(digits === null) return;
+    const answer = (digitSum(digits) * 3.07) / 2;
+    showResult('gr', answer);
+  }
+
+  function calcGoldOpening(){
+    const digits = validateGoldInput('go');
+    if(digits === null) return;
+    const answer = ((digitSum(digits) * 5) - 1) / 2;
+    showResult('go', answer);
+  }
+
+  function calcBtcPrev(){
+    const price = validateBtcInput('bp');
+    if(price === null) return;
+    const answer = price / 3.069;
+    showResult('bp', answer);
+  }
+
+  function calcBtcCandle(){
+    const price = validateBtcInput('bc');
+    if(price === null) return;
+    const answer = (price / 287) * 3.07;
+    showResult('bc', answer);
+  }
+
+  // allow Enter key to trigger each calculator's Go
+  document.querySelectorAll('.input-row input').forEach(input => {
+    input.addEventListener('keydown', (e) => {
+      if(e.key === 'Enter'){
+        input.nextElementSibling.click();
+      }
+    });
+  });
+</script>
+</body>
+</html>
