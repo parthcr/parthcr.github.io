@@ -71,6 +71,9 @@
   .up{color:var(--accent);}
   .down{color:var(--danger);}
 
+  #value-stat{cursor:pointer;}
+  #value-stat:hover{border-color:var(--accent);background:var(--accent-soft);}
+
   .btn-add{
     background:var(--accent-soft);color:var(--accent);border:1px solid var(--accent);
     padding:10px 16px;font-size:13.5px;font-weight:600;border-radius:6px;cursor:pointer;
@@ -187,19 +190,33 @@
 
   ::-webkit-scrollbar{width:8px;height:8px;}
   ::-webkit-scrollbar-thumb{background:var(--faint);border-radius:4px;}
+
+  #app-title{cursor:pointer;user-select:none;}
+  #app-title:active{transform:scale(0.97);}
+
+  .money-rain-layer{position:fixed;inset:0;pointer-events:none;z-index:9999;overflow:hidden;}
+  .money-piece{
+    position:absolute;top:-60px;will-change:transform,opacity;
+    animation-name:moneyFall;animation-timing-function:linear;animation-fill-mode:forwards;
+  }
+  @keyframes moneyFall{
+    0%{transform:translateY(0) translateX(0) rotate(0deg);opacity:1;}
+    85%{opacity:1;}
+    100%{transform:translateY(110vh) translateX(var(--drift)) rotate(var(--spin));opacity:0.9;}
+  }
 </style>
 </head>
 <body>
 
 <div class="page">
   <header>
-    <h1>|| चामुंडा कृपा ||</h1>
+    <h1 id="app-title" title="Click for a surprise">|| चामुंडा कृपा ||</h1>
     <div class="updated" id="updated-at"></div>
   </header>
   <div class="layout">
     <div class="layout-left">
       <div class="summary">
-        <div class="stat">
+        <div class="stat" id="value-stat" title="View total value history">
           <div class="stat-label">Total value</div>
           <div class="stat-value" id="sum-value" style="color:var(--accent);">$0.00</div>
           <svg id="sparkline" viewBox="0 0 200 40" style="width:100%;height:28px;margin-top:6px;display:none;" preserveAspectRatio="none"></svg>
@@ -281,7 +298,7 @@
   </div>
 </div>
 
-<!-- Chart modal -->
+<!-- Chart modal (shared by per-asset charts AND the total-value history chart) -->
 <div class="modal-overlay" id="chart-modal" style="display:none;">
   <div class="modal-box chart-box">
     <button class="modal-close" id="chart-modal-close">×</button>
@@ -315,6 +332,7 @@ let selectedCoin = null;
 let editingIdx = null;
 let searchTimer = null;
 let chartModalOpen = false;
+let chartMode = 'asset'; // 'asset' = per-coin price chart, 'value' = total portfolio value history
 let currentChartIdx = null;
 let currentChartDays = 30;
 let chartCache = {};
@@ -634,7 +652,7 @@ function render(){
   recordValueSnapshot(totalValue);
 }
 
-// ---------- value history (for the Total Value sparkline) ----------
+// ---------- value history (for the Total Value sparkline + click-through chart) ----------
 const VALUE_HISTORY_KEY = 'value-history-v1';
 let valueHistory = [];
 
@@ -663,14 +681,18 @@ function recordValueSnapshot(totalValue){
   if(totalValue <= 0) return;
   const now = Date.now();
   const last = valueHistory[valueHistory.length - 1];
-  // only log a new point every ~10 minutes so the history builds up over
-  // real time (hours/days) instead of filling with noise every refresh
-  if(!last || now - last[0] >= 10 * 60 * 1000){
+  // log a new point every ~2 minutes — frequent enough that the curve fills
+  // in with visible movement fairly quickly, without flooding storage
+  if(!last || now - last[0] >= 2 * 60 * 1000){
     valueHistory.push([now, totalValue]);
-    if(valueHistory.length > 500) valueHistory = valueHistory.slice(-500);
+    if(valueHistory.length > 2000) valueHistory = valueHistory.slice(-2000);
     saveValueHistory();
   }
   drawSparkline();
+  // if the value-history chart modal happens to be open, keep it live too
+  if(chartModalOpen && chartMode === 'value'){
+    drawValueChart(currentChartDays);
+  }
 }
 
 function drawSparkline(){
@@ -870,13 +892,18 @@ document.getElementById('modal-range').addEventListener('click', (e) => {
   if(!btn) return;
   document.querySelectorAll('#modal-range .range-btn').forEach(b => b.classList.toggle('active', b === btn));
   currentChartDays = parseInt(btn.dataset.days);
-  fetchAndDrawChart(currentChartIdx, currentChartDays);
+  if(chartMode === 'value'){
+    drawValueChart(currentChartDays);
+  }else{
+    fetchAndDrawChart(currentChartIdx, currentChartDays);
+  }
 });
 
 async function openChart(idx){
   const h = holdings[idx];
   if(!h) return;
   const p = priceCache[h.id];
+  chartMode = 'asset';
   currentChartIdx = idx;
   chartModalOpen = true;
   document.getElementById('modal-header').innerHTML = `${p && p.image ? `<img src="${p.image}">` : ''}<span class="mh-name">${h.name}</span><span class="mh-sym">${h.symbol.toUpperCase()}</span>`;
@@ -886,6 +913,38 @@ async function openChart(idx){
   document.querySelectorAll('#modal-range .range-btn').forEach(b => b.classList.toggle('active', b.dataset.days === '30'));
   await fetchAndDrawChart(idx, 30);
   setTimeout(() => prefetchOtherRanges(idx, 30), 400);
+}
+
+// click on the "Total value" box — open the same chart modal, but showing
+// the portfolio's own recorded value-over-time instead of a coin's price
+function openValueChart(){
+  chartMode = 'value';
+  currentChartIdx = null;
+  chartModalOpen = true;
+  document.getElementById('modal-header').innerHTML = `<span class="mh-name">Total Value</span>`;
+  document.getElementById('chart-modal').style.display = 'flex';
+  document.getElementById('price-chart').innerHTML = '';
+  currentChartDays = 30;
+  document.querySelectorAll('#modal-range .range-btn').forEach(b => b.classList.toggle('active', b.dataset.days === '30'));
+  drawValueChart(30);
+}
+document.getElementById('value-stat').addEventListener('click', openValueChart);
+
+function drawValueChart(days){
+  const loadingEl = document.getElementById('modal-loading');
+  const svg = document.getElementById('price-chart');
+  const cutoff = Date.now() - days * 24 * 60 * 60 * 1000;
+  const points = valueHistory.filter(p => p[0] >= cutoff);
+
+  if(points.length < 2){
+    svg.style.opacity = '1';
+    svg.innerHTML = '';
+    loadingEl.style.display = 'flex';
+    loadingEl.textContent = 'Not enough history yet — this fills in as your portfolio value gets tracked over time.';
+    return;
+  }
+  loadingEl.style.display = 'none';
+  drawChart(points);
 }
 
 async function prefetchOtherRanges(idx, loaded){
@@ -1154,6 +1213,41 @@ setInterval(async () => {
 }, 20000);
 
 loadValueHistory().then(loadHoldings);
+
+// ---------- money rain (click the title) ----------
+const MONEY_EMOJI = ['\u{1F4B5}','\u{1F4B0}','\u{1F4B8}','\u{1FA99}','\u{20B9}'];
+function moneyRain(){
+  let layer = document.getElementById('money-rain-layer');
+  if(!layer){
+    layer = document.createElement('div');
+    layer.id = 'money-rain-layer';
+    layer.className = 'money-rain-layer';
+    document.body.appendChild(layer);
+  }
+  const total = 150;
+  const spawnSpan = 3200; // ms — spread spawning over this window so pieces trickle in
+  for(let i=0;i<total;i++){
+    const spawnAt = Math.random()*spawnSpan;
+    setTimeout(() => {
+      const el = document.createElement('div');
+      el.className = 'money-piece';
+      el.textContent = MONEY_EMOJI[Math.floor(Math.random()*MONEY_EMOJI.length)];
+      const startX = Math.random()*100; // vw
+      const size = 18 + Math.random()*20; // px
+      const duration = 5 + Math.random()*3.5; // s — slower fall
+      const drift = (Math.random()*160 - 80) + 'px';
+      const spin = (Math.random()*720 - 360) + 'deg';
+      el.style.left = startX + 'vw';
+      el.style.fontSize = size + 'px';
+      el.style.setProperty('--drift', drift);
+      el.style.setProperty('--spin', spin);
+      el.style.animationDuration = duration + 's';
+      layer.appendChild(el);
+      setTimeout(() => el.remove(), duration*1000 + 150);
+    }, spawnAt);
+  }
+}
+document.getElementById('app-title').addEventListener('click', moneyRain);
 
 }catch(err){
   document.body.insertAdjacentHTML('beforeend',
